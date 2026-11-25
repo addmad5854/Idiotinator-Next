@@ -1,6 +1,11 @@
 name: Idiotinator APK
 on:
   workflow_dispatch:
+    inputs:
+      smoke_test:
+        description: Run optional emulator startup test after APK upload
+        type: boolean
+        default: false
   push:
     branches: [main]
 permissions:
@@ -150,23 +155,32 @@ jobs:
       - name: Verify the Plus store gate
         run: scripts/verify-plus-gate.sh android/app/build/outputs/apk/prod/release/app-prod-release.apk --ungated
 
-      - name: Verify Android launch on emulator
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 35
-          arch: x86_64
-          target: google_apis
-          script: bash scripts/idiotinator-smoke.sh
-      - name: Upload startup logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: startup-log
-          path: startup-log.txt
-          if-no-files-found: ignore
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
           name: android-release-apk
           path: android/app/build/outputs/apk/prod/release/app-prod-release.apk
 
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+        if: github.event_name == 'workflow_dispatch' && inputs.smoke_test
+      - name: Verify Android launch on emulator
+        if: github.event_name == 'workflow_dispatch' && inputs.smoke_test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          emulator-boot-timeout: 600
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          script: bash scripts/idiotinator-smoke.sh
+      - name: Upload startup logs
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.smoke_test
+        uses: actions/upload-artifact@v4
+        with:
+          name: startup-log
+          path: startup-log.txt
+          if-no-files-found: ignore

@@ -20,9 +20,15 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
-      - name: Install Android SDK
-        run: sdkmanager "platforms;android-37" "build-tools;37.0.0" "ndk;27.3.13750724"
+      - name: Install Android SDK using preinstalled tools
+        shell: bash
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          "$SDKMANAGER" --version
+          set +o pipefail
+          yes | "$SDKMANAGER" --licenses
+          set -o pipefail
+          "$SDKMANAGER" --install "platforms;android-37" "build-tools;37.0.0" "ndk;27.3.13750724"
       - name: Install JavaScript dependencies
         run: |
           touch .env

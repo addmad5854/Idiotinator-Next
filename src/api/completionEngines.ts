@@ -1,6 +1,6 @@
 import {LlamaContext} from 'llama.rn';
 import {Platform} from 'react-native';
-import {getCpuInfo} from '../utils/deviceCapabilities';
+import {getThermalStatus} from '../utils/deviceCapabilities';
 
 import {streamChatCompletion} from './openai';
 import type {RemoteEndpoint} from './servers';
@@ -23,7 +23,7 @@ export class LocalCompletionEngine implements CompletionEngine {
     callback?: (data: CompletionStreamData) => void,
   ): Promise<CompletionResult> {
     // Android thermal status is OS-reported, not an inferred temperature.
-    const thermal = async () => Platform.OS === 'android' ? (await getCpuInfo())?.thermalStatus : undefined;
+    const thermal = getThermalStatus;
     const initial = await thermal();
     if (initial !== undefined && initial >= 3) {
       throw new Error('Device is too hot for local inference. Allow it to cool and retry.');

@@ -32,6 +32,15 @@ class HardwareInfoModule(reactContext: ReactApplicationContext) :
 
   override fun getName(): String = NativeHardwareInfoSpec.NAME
 
+  override fun getThermalStatus(promise: Promise) {
+    try {
+      val power = reactApplicationContext.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+      promise.resolve(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && power != null) power.currentThermalStatus else -1)
+    } catch (e: Exception) {
+      promise.resolve(-1)
+    }
+  }
+
   override fun getChipset(promise: Promise) {
     try {
       // Prefer SOC_MODEL (Android S+) for more specific chipset info

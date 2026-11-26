@@ -6,11 +6,6 @@ on:
         description: Run optional emulator startup test after APK upload
         type: boolean
         default: false
-  push:
-    branches: [main]
-    paths-ignore:
-      - '.github/workflows/idiotinator-diagnostics.yml'
-      - '**/*.md'
 permissions:
   contents: read
 concurrency:

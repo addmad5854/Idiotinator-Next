@@ -1,3 +1,4 @@
+import {DiagnosticsCard} from './DiagnosticsCard';
 import {View, ScrollView} from 'react-native';
 import React, {useState, useCallback, useContext, useEffect} from 'react';
 
@@ -552,6 +553,7 @@ export const BenchmarkScreen: React.FC = observer(() => {
               <Text>Active model: {modelStore.activeModel?.name || 'None'}</Text>
               <Text>Context: {modelStore.context ? 'Loaded' : 'Not loaded'}</Text>
             </View>
+            <DiagnosticsCard busy={isRunning || !!modelStore.loadingModel} />
             <DeviceInfoCard onDeviceInfo={handleDeviceInfo} />
             {renderModelSelector()}
 

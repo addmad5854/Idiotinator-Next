@@ -6,7 +6,7 @@ import {confidence} from '../learningEvidence';
 
 jest.mock('@react-native-async-storage/async-storage', () => {
   const data = new Map<string,string>();
-  return {__esModule:true, default:{getItem:jest.fn(async (k:string)=>data.get(k) ?? null),setItem:jest.fn(async (k:string,v:string)=>{data.set(k,v);}),clear:jest.fn(async()=>{data.clear();})}};
+  return {__esModule:true, default:{getItem:jest.fn(async (k:string)=>data.get(k) ?? null),setItem:jest.fn(async (k:string,v:string)=>{data.set(k,v);}),removeItem:jest.fn(async(k:string)=>{data.delete(k);}),clear:jest.fn(async()=>{data.clear();})}};
 });
 jest.mock('../memoryDatabase',()=>{let rows:unknown[]=[];return {readMemoryRows:jest.fn(async()=>JSON.parse(JSON.stringify(rows))),writeMemoryRows:jest.fn(async(v:unknown[])=>{rows=JSON.parse(JSON.stringify(v));})};});
 beforeEach(async()=>{await AsyncStorage.clear();await require('../memoryDatabase').writeMemoryRows([]);});
@@ -49,3 +49,13 @@ test('disputed evidence receives zero confidence',()=>{
 
 test('privacy screening catches email and long identifiers',()=>{expect(isSensitiveMemory('Contact me at test@example.com')).toBe(true);expect(isSensitiveMemory('My identifier is 123456789012')).toBe(true);expect(isSensitiveMemory('My motorcycle is blue')).toBe(false);});
 test('mismatched evidence receives no confidence',()=>{expect(confidence({key:'x',claim:'new',disputed:false,evidence:[{kind:'user_correction',text:'old',recordedAt:1}]})).toBe(0);});
+
+test('explicit confirmation promotes a candidate',async()=>{
+  await setAutoLearningEnabled(true);
+  await saveKnowledgeCandidate('My motorcycle is blue');
+  await rememberExplicit('My motorcycle is blue');
+  expect(retrieveMemories(await listMemories(),'motorcycle')).toHaveLength(1);
+});
+test('invalid backup evidence cannot promote a candidate',async()=>{
+  await expect(restoreMemories(JSON.stringify({schema:1,entries:[{id:'bad',text:'My motorcycle is blue',source:'user',createdAt:1,evidence:{kind:'model_candidate',text:'different',recordedAt:1}}]}))).rejects.toThrow('Invalid memory evidence');
+});

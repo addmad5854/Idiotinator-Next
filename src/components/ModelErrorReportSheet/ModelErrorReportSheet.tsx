@@ -1,11 +1,10 @@
-import {View, Alert, Platform} from 'react-native';
+import {View, Alert, Platform, Share} from 'react-native';
 import React, {useContext, useState, useEffect, useCallback} from 'react';
 
 import {ContextParams} from 'llama.rn';
 import DeviceInfo from 'react-native-device-info';
 import {Text, Button, Checkbox, ActivityIndicator} from 'react-native-paper';
 
-import {submitModelLoadErrorReport} from '../../api/feedback';
 
 import {useTheme} from '../../hooks';
 
@@ -116,15 +115,17 @@ export const ModelErrorReportSheet: React.FC<ModelErrorReportSheetProps> = ({
     setIsSubmitting(true);
 
     try {
-      await submitModelLoadErrorReport({
+      const report = {
         reportType: 'model-load-error',
         version: 1,
+        appVersion: DeviceInfo.getVersion(),
+        buildNumber: DeviceInfo.getBuildNumber(),
         errorMessage: errorMessage,
         modelInfo: includeModelInfo
           ? {
               name: modelName,
               id: modelId,
-              url: modelUrl,
+
               size: modelSize,
             }
           : undefined,
@@ -140,13 +141,8 @@ export const ModelErrorReportSheet: React.FC<ModelErrorReportSheetProps> = ({
             }
           : undefined,
         additionalInfo: additionalInfo.trim() || undefined,
-      });
-
-      Alert.alert(
-        l10n.components.modelErrorReportSheet.success.title,
-        l10n.components.modelErrorReportSheet.success.message,
-        [{text: l10n.common.ok, onPress: handleClose}],
-      );
+      };
+      await Share.share({title: 'Idiotinator bug report', message: 'Idiotinator model loading report\n' + JSON.stringify(report, null, 2)});
     } catch (err) {
       console.error('Model error report submission error:', err);
       Alert.alert(
@@ -243,7 +239,7 @@ export const ModelErrorReportSheet: React.FC<ModelErrorReportSheetProps> = ({
       <Sheet.ScrollView contentContainerStyle={styles.container}>
         {/* Privacy Note */}
         <Text variant="bodySmall" style={styles.privacyNote}>
-          {l10n.components.modelErrorReportSheet.privacyNote}
+          {'Review the selected details, then share the report to ChatGPT or your preferred app. Nothing is uploaded automatically.'}
         </Text>
 
         {/* Error Message - always included */}
@@ -328,7 +324,7 @@ export const ModelErrorReportSheet: React.FC<ModelErrorReportSheetProps> = ({
             {isSubmitting ? (
               <ActivityIndicator size="small" />
             ) : (
-              l10n.components.modelErrorReportSheet.submit
+              'Share Report'
             )}
           </Button>
         </View>

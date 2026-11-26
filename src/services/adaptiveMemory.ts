@@ -6,11 +6,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export type MemoryEntry = {id: string; text: string; source: 'user'; createdAt: number; evidence?: LearningEvidence};
 const KEY = '@idiotinator/adaptive-memory/v1';
 // Keep each AsyncStorage value below Android's typical per-row read limit.
-const MAX_SERIALIZED_BYTES = 1500000;
+const MAX_SERIALIZED_BYTES = 16000000;
 function serializeEntries(entries: MemoryEntry[]): string {
   const raw = JSON.stringify(entries);
   // Three bytes per UTF-16 code unit is a conservative UTF-8 upper bound.
-  if (raw.length * 3 > MAX_SERIALIZED_BYTES) throw new Error('Memory storage budget reached. Export or delete older memories.');
+  if (raw.length * 3 > MAX_SERIALIZED_BYTES) throw new Error('Backup exceeds the supported export size.');
   return raw;
 }
 let queue: Promise<unknown> = Promise.resolve();
@@ -41,6 +41,7 @@ async function readEntries(): Promise<MemoryEntry[]> {
       await writeMemoryRows([...merged.values()]);
       await AsyncStorage.setItem(KEY + '/sqlite','true');
     }
+    await AsyncStorage.removeItem(KEY);
     migrated = true;
   }
   return readMemoryRows();
@@ -65,7 +66,11 @@ export function rememberExplicit(text: string): Promise<void> {
     const clean = normalizeMemory(text);
     if (!clean) return;
     const entries = await readEntries();
-    if (entries.some(e => e.text.toLowerCase() === clean.toLowerCase())) return;
+    const existing = entries.find(e => e.text.toLowerCase() === clean.toLowerCase());
+    if (existing) {
+      if (existing.evidence?.kind === 'model_candidate') await persistEntries(entries.map(e=>e.id===existing.id ? {...e,evidence:undefined} : e));
+      return;
+    }
     entries.push({id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2), text: clean, source: 'user', createdAt: Date.now()});
     await persistEntries(entries);
   });
@@ -127,7 +132,9 @@ export function restoreMemories(raw: string): Promise<void> {
     const entries: MemoryEntry[] = data.entries.map((e: MemoryEntry) => {
       if (!e || typeof e.id !== 'string' || !e.id || ids.has(e.id) || typeof e.text !== 'string' || !normalizeMemory(e.text) || e.source !== 'user' || !Number.isFinite(e.createdAt)) throw new Error('Invalid memory entry');
       ids.add(e.id);
-      return {id: e.id, text: normalizeMemory(e.text), source: 'user', createdAt: e.createdAt, ...(e.evidence && ['user_correction', 'user_confirmed_success', 'model_candidate'].includes(e.evidence.kind) && typeof e.evidence.text === 'string' && normalizeMemory(e.evidence.text) === normalizeMemory(e.text) && Number.isFinite(e.evidence.recordedAt) && e.evidence.recordedAt > 0 ? {evidence: {kind: e.evidence.kind, text: normalizeMemory(e.evidence.text), recordedAt: e.evidence.recordedAt}} : {})};
+      const text = normalizeMemory(e.text);
+      if (e.evidence !== undefined && (!e.evidence || !['user_statement','user_correction','user_confirmed_success','model_candidate'].includes(e.evidence.kind) || typeof e.evidence.text !== 'string' || normalizeMemory(e.evidence.text) !== text || !Number.isFinite(e.evidence.recordedAt) || e.evidence.recordedAt <= 0)) throw new Error('Invalid memory evidence');
+      return {id:e.id,text,source:'user',createdAt:e.createdAt,...(e.evidence ? {evidence:{kind:e.evidence.kind,text,recordedAt:e.evidence.recordedAt}} : {})};
     });
     await persistEntries(entries);
   });
@@ -185,7 +192,7 @@ export function learnFeedback(input: string): Promise<void> {
     // Only replace a contradiction when a supported stable preference key matches.
     const claim = extractUserClaim(text);
     const retained = evidence.kind === 'user_correction' && claim ? entries.filter(e => extractUserClaim(e.text)?.key !== claim.key) : entries;
-    retained.push({id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2), text, source: 'user', createdAt: Date.now(), evidence});
+    retained.push({id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2), text, source: 'user', createdAt: Date.now(), evidence: {...evidence,text}});
     await persistEntries(retained);
   });
 }

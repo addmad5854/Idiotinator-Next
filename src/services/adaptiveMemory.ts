@@ -1,3 +1,4 @@
+import {isSensitiveMemory} from './memoryPrivacy';
 import {extractFeedback, confidence, type LearningEvidence} from './learningEvidence';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -133,6 +134,7 @@ export function extractUserClaim(input: string): LearnedClaim | null {
 export function learnUserClaim(input: string): Promise<void> {
   return mutate(async () => {
     if (!(await memoryEnabled()) || (await AsyncStorage.getItem(KEY + '/auto')) !== 'true') return;
+    if (isSensitiveMemory(input)) return;
     const claim = extractUserClaim(input);
     if (!claim) return;
     const entries = await readEntries();
@@ -153,6 +155,7 @@ export async function setAutoLearningEnabled(enabled: boolean): Promise<void> {
 export function learnFeedback(input: string): Promise<void> {
   return mutate(async () => {
     if (!(await memoryEnabled()) || !(await autoLearningEnabled())) return;
+    if (isSensitiveMemory(input)) return;
     const evidence = extractFeedback(input);
     if (!evidence) return;
     const text = normalizeMemory(evidence.text);
@@ -169,6 +172,7 @@ export function learnFeedback(input: string): Promise<void> {
 export function saveKnowledgeCandidate(quote: string): Promise<void> {
   return mutate(async () => {
     if (!(await memoryEnabled()) || !(await autoLearningEnabled())) return;
+    if (isSensitiveMemory(quote)) return;
     const text = normalizeMemory(quote);
     if (!text) return;
     const entries = await readEntries();

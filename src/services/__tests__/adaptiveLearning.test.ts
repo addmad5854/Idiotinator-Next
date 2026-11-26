@@ -1,3 +1,4 @@
+import {parseDisputes} from '../memoryContradictions';
 import {isSensitiveMemory} from '../memoryPrivacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {retrieveMemories, rememberExplicit, listMemories, learnFeedback, setAutoLearningEnabled, setMemoryEnabled, saveKnowledgeCandidate, updateMemory, exportMemories, restoreMemories, type MemoryEntry} from '../adaptiveMemory';
@@ -73,3 +74,5 @@ test('aborted extraction waits for native stop and discards result',async()=>{
 
 test('extraction cannot omit negation from a sentence',()=>{expect(groundedCandidate('I do not prefer English','prefer English')).toBeNull();expect(groundedCandidate('My motorcycle is not blue','My motorcycle is')).toBeNull();});
 test('explicit secrets are not persisted',async()=>{await rememberExplicit('My password is abcdef');expect(await listMemories()).toEqual([]);});
+
+test('semantic dispute parser rejects unknown IDs and malformed output',()=>{const e:MemoryEntry={id:'a',text:'My car is blue',source:'user',createdAt:1};expect(parseDisputes('["a","unknown"]',[e])).toEqual(['a']);expect(parseDisputes('not JSON',[e])).toEqual([]);expect(retrieveMemories([{...e,disputed:true}],'car')).toEqual([]);});

@@ -1,5 +1,7 @@
+import {detectDisputes} from '../services/memoryContradictions';
+import {extractFeedback} from '../services/learningEvidence';
 import {extractKnowledge} from '../services/knowledgeExtraction';
-import {explicitMemoryRequest, rememberExplicit, findRelevantMemories, memoryEnabled, learnUserClaim, learnFeedback, autoLearningEnabled, saveKnowledgeCandidate} from '../services/adaptiveMemory';
+import {explicitMemoryRequest, rememberExplicit, findRelevantMemories, memoryEnabled, learnUserClaim, learnFeedback, autoLearningEnabled, saveKnowledgeCandidate, flagDisputedMemories} from '../services/adaptiveMemory';
 import React, {useRef} from 'react';
 import {AccessibilityInfo} from 'react-native';
 
@@ -1011,6 +1013,12 @@ export const useChatSession = (
       if (modelStore.context && modelStore.contextId === contextId && !hasImages && !opts.spoken && !lease.signal.aborted) {
         try {
           if (await memoryEnabled() && await autoLearningEnabled() && !explicitMemoryRequest(message.text) && !lease.signal.aborted) {
+            const correction=extractFeedback(message.text);
+            if(correction?.kind==='user_correction'){
+              const related=(await findRelevantMemories(correction.text)).filter(e=>e.text!==correction.text);
+              const ids=await detectDisputes(engine,correction.text,related,lease.signal);
+              if(!lease.signal.aborted&&ids.length)await flagDisputedMemories(ids);
+            }
             const candidate = await extractKnowledge(engine, message.text, lease.signal);
             if (candidate && !lease.signal.aborted) await saveKnowledgeCandidate(candidate);
           }

@@ -3,7 +3,7 @@ import {isSensitiveMemory} from './memoryPrivacy';
 import {extractFeedback, confidence, type LearningEvidence} from './learningEvidence';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type MemoryEntry = {id: string; text: string; source: 'user'; createdAt: number; evidence?: LearningEvidence};
+export type MemoryEntry = {id: string; text: string; source: 'user'; createdAt: number; evidence?: LearningEvidence; disputed?: boolean};
 const KEY = '@idiotinator/adaptive-memory/v1';
 // Keep each AsyncStorage value below Android's typical per-row read limit.
 const MAX_SERIALIZED_BYTES = 16000000;
@@ -100,7 +100,7 @@ function keywords(text: string): Set<string> {
 }
 export function retrieveMemories(entries: MemoryEntry[], query: string, charBudget = 1200): MemoryEntry[] {
   const words = keywords(query);
-  const ranked = entries.filter(entry => !entry.evidence || ['user_statement', 'user_correction', 'user_confirmed_success'].includes(entry.evidence.kind)).map(entry => {
+  const ranked = entries.filter(entry => !entry.disputed && (!entry.evidence || ['user_statement', 'user_correction', 'user_confirmed_success'].includes(entry.evidence.kind))).map(entry => {
     const terms = keywords(entry.text);
     const overlap = [...terms].filter(w => words.has(w)).length;
     return {entry, score: overlap / Math.sqrt(Math.max(1, terms.size)) * confidence({key: entry.id, claim: entry.text, disputed: false, evidence: [entry.evidence ?? {kind: 'user_statement', text: entry.text, recordedAt: entry.createdAt}]})};
@@ -123,7 +123,7 @@ export function updateMemory(id: string, text: string): Promise<void> {
     if (!clean || isSensitiveMemory(clean)) throw new Error('Memory is empty or contains sensitive information');
     const entries = await readEntries();
     if (!entries.some(e => e.id === id)) throw new Error('Memory not found');
-    await persistEntries(entries.map(e => e.id === id ? {...e, text: clean, evidence: undefined} : e));
+    await persistEntries(entries.map(e => e.id === id ? {...e, text: clean, evidence: undefined, disputed:false} : e));
   });
 }
 
@@ -142,7 +142,7 @@ export function restoreMemories(raw: string): Promise<void> {
       const text = normalizeMemory(e.text);
       if (isSensitiveMemory(text)) throw new Error('Backup contains sensitive information');
       if (e.evidence !== undefined && (!e.evidence || !['user_statement','user_correction','user_confirmed_success','model_candidate'].includes(e.evidence.kind) || typeof e.evidence.text !== 'string' || normalizeMemory(e.evidence.text) !== text || !Number.isFinite(e.evidence.recordedAt) || e.evidence.recordedAt <= 0)) throw new Error('Invalid memory evidence');
-      return {id:e.id,text,source:'user',createdAt:e.createdAt,...(e.evidence ? {evidence:{kind:e.evidence.kind,text,recordedAt:e.evidence.recordedAt}} : {})};
+      return {id:e.id,text,source:'user',createdAt:e.createdAt,disputed:e.disputed===true,...(e.evidence ? {evidence:{kind:e.evidence.kind,text,recordedAt:e.evidence.recordedAt}} : {})};
     });
     await persistEntries(entries);
   });
@@ -217,4 +217,8 @@ export function saveKnowledgeCandidate(quote: string): Promise<void> {
     entries.push({id: now.toString(36) + '-' + Math.random().toString(36).slice(2), text, source: 'user', createdAt: now, evidence: {kind:'model_candidate', text, recordedAt:now}});
     await persistEntries(entries);
   });
+}
+
+export function flagDisputedMemories(ids:string[]):Promise<void>{
+ return mutate(async()=>{if(!(await memoryEnabled())||!(await autoLearningEnabled()))return;const entries=await readEntries();await persistEntries(entries.map(e=>ids.includes(e.id)?{...e,disputed:true}:e));});
 }

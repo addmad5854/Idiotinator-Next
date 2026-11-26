@@ -1,6 +1,7 @@
+import {extractFeedback, type LearningEvidence} from './learningEvidence';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type MemoryEntry = {id: string; text: string; source: 'user'; createdAt: number};
+export type MemoryEntry = {id: string; text: string; source: 'user'; createdAt: number; evidence?: LearningEvidence};
 const KEY = '@idiotinator/adaptive-memory/v1';
 // Keep each AsyncStorage value below Android's typical per-row read limit.
 const MAX_SERIALIZED_BYTES = 1500000;
@@ -104,7 +105,7 @@ export function restoreMemories(raw: string): Promise<void> {
     const entries: MemoryEntry[] = data.entries.map((e: MemoryEntry) => {
       if (!e || typeof e.id !== 'string' || !e.id || ids.has(e.id) || typeof e.text !== 'string' || !normalizeMemory(e.text) || e.source !== 'user' || !Number.isFinite(e.createdAt)) throw new Error('Invalid memory entry');
       ids.add(e.id);
-      return {id: e.id, text: normalizeMemory(e.text), source: 'user', createdAt: e.createdAt};
+      return {id: e.id, text: normalizeMemory(e.text), source: 'user', createdAt: e.createdAt, ...(e.evidence && ['user_correction', 'user_confirmed_success'].includes(e.evidence.kind) && typeof e.evidence.text === 'string' && Number.isFinite(e.evidence.recordedAt) ? {evidence: {kind: e.evidence.kind, text: normalizeMemory(e.evidence.text), recordedAt: e.evidence.recordedAt}} : {})};
     });
     await AsyncStorage.setItem(KEY, serializeEntries(entries));
   });
@@ -147,4 +148,17 @@ export async function autoLearningEnabled(): Promise<boolean> {
 }
 export async function setAutoLearningEnabled(enabled: boolean): Promise<void> {
   await AsyncStorage.setItem(KEY + '/auto', String(enabled));
+}
+
+export function learnFeedback(input: string): Promise<void> {
+  return mutate(async () => {
+    if (!(await memoryEnabled()) || !(await autoLearningEnabled())) return;
+    const evidence = extractFeedback(input);
+    if (!evidence) return;
+    const text = normalizeMemory(evidence.text);
+    const entries = await readEntries();
+    if (entries.some(e => e.text.toLowerCase() === text.toLowerCase() && e.evidence?.kind === evidence.kind)) return;
+    entries.push({id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2), text, source: 'user', createdAt: Date.now(), evidence});
+    await AsyncStorage.setItem(KEY, serializeEntries(entries));
+  });
 }

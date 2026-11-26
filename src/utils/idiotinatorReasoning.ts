@@ -9,7 +9,7 @@ export async function chooseReasoning(
   signal: AbortSignal,
 ): Promise<ReasoningLevel> {
   if (signal.aborted) return 'standard';
-  if (!context && /^(hi|hello|hey|thanks|thank you)[!. ]*$/i.test(prompt.trim())) return 'instant';
+  if (/^(hi|hello|hey|thanks|thank you|good morning|good evening|how are you|hello,? how are you)[?!. ]*$/i.test(prompt.trim())) return 'instant';
   try {
     const result = await engine.completion({
       messages: [
@@ -21,6 +21,7 @@ export async function chooseReasoning(
       enable_thinking: false,
       chat_template_kwargs: {enable_thinking: false},
     });
+    if (signal.aborted) return 'standard';
     const label = (result.content || result.text || '').trim().toLowerCase();
     if (label === 'instant' || label === 'standard' || label === 'deep') return label;
   } catch {

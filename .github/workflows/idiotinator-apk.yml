@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
-      ORG_GRADLE_PROJECT_rnllamaBuildFromSource: 'false'
+      ORG_GRADLE_PROJECT_rnllamaBuildFromSource: 'true'
       ORG_GRADLE_PROJECT_reactNativeArchitectures: ${{ inputs.smoke_test && 'arm64-v8a,x86_64' || 'arm64-v8a' }}
     steps:
       - name: Check out code
@@ -47,7 +47,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: node_modules
-          key: ${{ runner.os }}-node-${{ hashFiles('yarn.lock', 'patches/**') }}
+          key: ${{ runner.os }}-node-${{ hashFiles('package.json', 'yarn.lock', 'patches/**') }}
 
       - name: Install Yarn
         run: npm install -g yarn
@@ -140,9 +140,13 @@ jobs:
           p.write_text(s)
           PY
 
+      - name: Set up the Hexagon SDK
+        uses: ./.github/actions/setup-hexagon-sdk
+      - name: Set up ccache
+        uses: ./.github/actions/setup-ccache
       - name: Build Android Release
         working-directory: android
-        run: bash gradlew assembleProdRelease --stacktrace --build-cache --console=plain -PrnllamaBuildFromSource=false -PreactNativeArchitectures="$ORG_GRADLE_PROJECT_reactNativeArchitectures"
+        run: bash gradlew assembleProdRelease --stacktrace --build-cache --console=plain -PrnllamaBuildFromSource=true -PreactNativeArchitectures="$ORG_GRADLE_PROJECT_reactNativeArchitectures"
 
       - name: Verify prod APK has no automation-bridge code (DCE sanity check)
         run: |
@@ -197,6 +201,16 @@ jobs:
           assert actual == expected, (actual, expected)
           PY
 
+      - name: Verify native payload
+        run: |
+          node -e 'const fs=require("fs"); const m=require("./scripts/android-payload-manifest.json"); m.abis=m.abis.filter(a=>process.env.ORG_GRADLE_PROJECT_reactNativeArchitectures.split(",").includes(a.abi)); fs.writeFileSync("scripts/idiotinator-payload-ci.json",JSON.stringify(m));'
+          node scripts/verify-android-payload.js --manifest scripts/idiotinator-payload-ci.json --apk android/app/build/outputs/apk/prod/release/app-prod-release.apk --report payload-report.txt
+      - name: Upload native payload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: payload-report
+          path: payload-report.txt
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:

@@ -11,3 +11,10 @@ test.each(['instant', 'standard', 'deep', 'invalid'])('classifier result %s', as
   const engine: CompletionEngine = {completion: jest.fn().mockResolvedValue({content: label}), stopCompletion: jest.fn()};
   expect(await chooseReasoning(engine, 'Explain this', 'previous context', new AbortController().signal)).toBe(label === 'invalid' ? 'standard' : label);
 });
+
+test('casual greeting with history avoids extra inference', async () => {
+  const completion = jest.fn();
+  const engine: CompletionEngine = {completion, stopCompletion: jest.fn()};
+  expect(await chooseReasoning(engine, 'Hello, how are you?', 'history', new AbortController().signal)).toBe('instant');
+  expect(completion).not.toHaveBeenCalled();
+});

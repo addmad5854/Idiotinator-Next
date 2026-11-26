@@ -197,6 +197,10 @@ jobs:
           path: native-engine/
           if-no-files-found: error
           retention-days: 90
+      - name: Native downloader regression tests
+        working-directory: android
+        run: bash gradlew :app:testProdDebugUnitTest --tests 'com.pocketpal.download.*' --stacktrace --build-cache --console=plain -PrnllamaBuildFromSource=true -PreactNativeArchitectures="$ORG_GRADLE_PROJECT_reactNativeArchitectures"
+
       - name: Build Android Release
         working-directory: android
         run: bash gradlew assembleProdRelease --stacktrace --build-cache --console=plain -PrnllamaBuildFromSource=true -PreactNativeArchitectures="$ORG_GRADLE_PROJECT_reactNativeArchitectures"

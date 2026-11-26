@@ -325,7 +325,11 @@ export const SettingsScreen: React.FC = observer(() => {
   };
 
   const handleDeviceSelect = (option: DeviceOption) => {
+    const previousDevice = getCurrentDeviceId();
     modelStore.setDevices(option.devices);
+    if (previousDevice !== option.id || option.id === 'cpu') {
+      modelStore.setNGPULayers(option.n_gpu_layers);
+    }
 
     // Only update flash attention if current value is not valid for the selected device
     const currentFlashAttn =
@@ -396,6 +400,7 @@ export const SettingsScreen: React.FC = observer(() => {
                     />
 
                     {/* GPU Layers Slider */}
+                    {getCurrentDeviceId() !== 'cpu' ? <>
                     <InputSlider
                       testID="gpu-layers-slider"
                       value={modelStore.contextInitParams.n_gpu_layers}
@@ -407,11 +412,9 @@ export const SettingsScreen: React.FC = observer(() => {
                       step={1}
                     />
                     <Text variant="labelSmall" style={styles.textDescription}>
-                      {t(l10n.settings.layersOnGPU, {
-                        gpuLayers:
-                          modelStore.contextInitParams.n_gpu_layers.toString(),
-                      })}
+                      Requested accelerator layers: {modelStore.contextInitParams.n_gpu_layers === 99 ? 'All' : modelStore.contextInitParams.n_gpu_layers}
                     </Text>
+                    </> : <Text variant="labelSmall" style={styles.textDescription}>CPU only — 0 accelerator layers</Text>}
                   </>
                 ) : (
                   /* Simplified UI when only CPU available */
@@ -427,7 +430,7 @@ export const SettingsScreen: React.FC = observer(() => {
 
                 {/* OpenCL quantization note for Android */}
                 {Platform.OS === 'android' &&
-                  gpuSupported &&
+                  gpuSupported && getCurrentDeviceId() === 'gpu' &&
                   (modelStore.contextInitParams.n_gpu_layers ?? 0) > 0 && (
                     <View>
                       <Text variant="labelSmall" style={styles.textDescription}>

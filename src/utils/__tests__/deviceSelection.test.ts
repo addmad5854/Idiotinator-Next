@@ -121,3 +121,5 @@ describe('Hexagon device selection', () => {
     });
   });
 });
+
+test('OpenCL and HTP remain distinct even when both report GPU type',async()=>{const os=Platform.OS;Platform.OS='android';try{discover.mockResolvedValue([{...device('HTP0'),type:'gpu'},{...device('GPUOpenCL'),type:'gpu',backend:'OpenCL'}]);const options=await getDeviceOptions();expect(options.find(o=>o.id==='gpu')?.devices).toEqual(['GPUOpenCL']);expect(options.find(o=>o.id==='hexagon')?.devices).toEqual(['HTP0']);}finally{Platform.OS=os;}});

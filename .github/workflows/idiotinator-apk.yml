@@ -61,7 +61,7 @@ jobs:
         run: INIT_CWD="$GITHUB_WORKSPACE" node node_modules/react-native-enriched-markdown/postinstall.mjs
 
       - name: Test adaptive reasoning
-        run: yarn test --runInBand src/utils/__tests__/idiotinatorReasoning.test.ts
+        run: yarn test --runInBand --coverage=false src/utils/__tests__/idiotinatorReasoning.test.ts
 
       - name: Set up JDK 17
         uses: actions/setup-java@v3

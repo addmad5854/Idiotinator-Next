@@ -53,12 +53,27 @@ export function explicitMemoryRequest(text: string): string | null {
   return match ? normalizeMemory(match[1]) || null : null;
 }
 
-export function retrieveMemories(entries: MemoryEntry[], query: string): MemoryEntry[] {
-  const words = new Set(query.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) || []);
-  return entries.map(entry => ({entry, score: [...new Set(entry.text.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) || [])].filter(w => words.has(w)).length}))
-    .filter(x => x.score > 0)
-    .sort((a,b) => b.score - a.score || b.entry.createdAt - a.entry.createdAt)
-    .slice(0, 5).map(x => x.entry);
+const STOP_WORDS = new Set(['the','and','that','this','with','what','when','where','how','can','you','your','remember','about','for','are','was','have','from','tell','please']);
+function keywords(text: string): Set<string> {
+  return new Set((text.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) || []).filter(w => !STOP_WORDS.has(w)));
+}
+export function retrieveMemories(entries: MemoryEntry[], query: string, charBudget = 1200): MemoryEntry[] {
+  const words = keywords(query);
+  const ranked = entries.map(entry => {
+    const terms = keywords(entry.text);
+    const overlap = [...terms].filter(w => words.has(w)).length;
+    return {entry, score: overlap / Math.sqrt(Math.max(1, terms.size))};
+  }).filter(x => x.score > 0).sort((a,b) => b.score - a.score || b.entry.createdAt - a.entry.createdAt);
+  const result: MemoryEntry[] = [];
+  let remaining = Math.max(0, charBudget);
+  for (const {entry} of ranked) {
+    const cost = JSON.stringify(entry.text).length + 2;
+    if (cost > remaining) continue;
+    result.push(entry);
+    remaining -= cost;
+    if (result.length >= 5) break;
+  }
+  return result;
 }
 
 export function updateMemory(id: string, text: string): Promise<void> {

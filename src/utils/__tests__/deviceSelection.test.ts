@@ -1,7 +1,7 @@
 import {Platform} from 'react-native';
 import {getBackendDevicesInfo} from 'llama.rn';
 
-import {getDeviceOptions, resolveDeviceSelection, isHexagonAvailable, validateModelQuantizationForDevice} from '../deviceSelection';
+import {getDeviceOptions, resolveDeviceSelection, isHexagonAvailable, validateModelQuantizationForDevice, detectQuantizationType} from '../deviceSelection';
 
 const discover = getBackendDevicesInfo as jest.Mock;
 const device = (deviceName: string) => ({
@@ -148,4 +148,11 @@ test('OpenCL and HTP remain distinct even when both report GPU type',async()=>{c
     expect(validateModelQuantizationForDevice('model-Q4_K_M.gguf', gpu).valid).toBe(false);
     expect(validateModelQuantizationForDevice('model-Q4_0.gguf', gpu).valid).toBe(true);
   } finally { Platform.OS = os; }
+});
+
+ test('quantization detection does not confuse IQ4_0 or longer suffixes with Q4_0', () => {
+  expect(detectQuantizationType('model-IQ4_0.gguf')).toBeNull();
+  expect(detectQuantizationType('model-Q4_00.gguf')).toBeNull();
+  expect(detectQuantizationType('model-Q4_0.gguf')).toBe('q4_0');
+  expect(detectQuantizationType('model-Q6_K.gguf')).toBe('q6_k');
 });

@@ -44,6 +44,7 @@ import {
   SearchProviderKeySheet,
   InputSlider,
 } from '../../components';
+import {MemoryCard} from './MemoryCard';
 import {LocalApiServerCard} from './LocalApiServerCard';
 
 import {useTheme} from '../../hooks';
@@ -351,7 +352,7 @@ export const SettingsScreen: React.FC = observer(() => {
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled">
           <Text variant="headlineMedium">Control center</Text>
-          <View style={{flexDirection: "row", flexWrap: "wrap", gap: 8, marginVertical: 12}}>{["Hardware","Voice & appearance","Connectivity","Storage"].map(s => <Button key={s} mode={section === s ? "contained" : "outlined"} onPress={() => setSection(s)}>{s}</Button>)}</View>
+          <View style={{flexDirection: "row", flexWrap: "wrap", gap: 8, marginVertical: 12}}>{["Hardware","Voice & appearance","Connectivity","Storage","Memory"].map(s => <Button key={s} mode={section === s ? "contained" : "outlined"} onPress={() => setSection(s)}>{s}</Button>)}</View>
           {/* Model Initialization Settings */}
           {section === 'Hardware' && (<Card elevation={0} style={styles.card}>
             <Card.Title title={l10n.settings.modelInitializationSettings} />
@@ -1672,6 +1673,7 @@ export const SettingsScreen: React.FC = observer(() => {
 
 
           {section === 'Connectivity' && <LocalApiServerCard />}
+          {section === 'Memory' && <MemoryCard />}
 
           {/* Export Options */}
           {section === 'Storage' && (<Card elevation={0} style={styles.card}>

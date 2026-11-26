@@ -2519,7 +2519,7 @@ class ModelStore {
           // Apply effective value: clamp image_max_tokens to n_ctx
           const success = await ctx.initMultimodal({
             path: mmProjPath,
-            use_gpu: !this.contextInitParams.no_gpu_devices,
+            use_gpu: !effectiveSettings.no_gpu_devices,
             image_max_tokens: Math.min(
               this.contextInitParams.image_max_tokens ?? 512,
               this.contextInitParams.n_ctx,

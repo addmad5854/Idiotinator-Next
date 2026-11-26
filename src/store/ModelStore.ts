@@ -342,6 +342,10 @@ class ModelStore {
           if (model.modelType !== ModelType.PROJECTION) {
             await this.fetchAndPersistGGUFMetadata(model);
           }
+          if (Platform.OS === 'android') {
+            await this._downloadProjectionModelIfNeeded(model);
+            await this._downloadDraftModelIfNeeded(model);
+          }
         }
       },
       onError: (modelId, error, keptProgress) => {
@@ -1765,9 +1769,11 @@ class ModelStore {
       const authToken = hfStore.shouldUseToken ? hfStore.hfToken : null;
       await downloadManager.startDownload(model, destinationPath, authToken);
 
-      // For vision models, automatically download the projection model
-      await this._downloadProjectionModelIfNeeded(model);
-      await this._downloadDraftModelIfNeeded(model);
+      // Android schedules asynchronously; dependencies start on completion.
+      if (Platform.OS !== 'android') {
+        await this._downloadProjectionModelIfNeeded(model);
+        await this._downloadDraftModelIfNeeded(model);
+      }
     } catch (err) {
       if (err instanceof DownloadCancelledError) {
         // User cancelled — not a failure. Don't surface an error and don't

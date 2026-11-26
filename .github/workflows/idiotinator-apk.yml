@@ -56,6 +56,8 @@ jobs:
       - name: TypeScript regression check
         run: yarn tsc --noEmit
 
+      - name: Test adaptive learning safety
+        run: yarn test --runInBand src/services/__tests__/adaptiveLearning.test.ts
       - name: Test adaptive reasoning
         run: yarn test --runInBand --coverage=false src/utils/__tests__/diagnosticStatus.test.ts src/components/MarkdownView/__tests__/normalizeBreakTags.test.ts src/utils/__tests__/idiotinatorReasoning.test.ts src/components/MarkdownView/__tests__/invariants.test.ts src/components/MarkdownView/__tests__/MarkdownView.test.tsx
 

@@ -1,3 +1,4 @@
+import AdaptiveMemoryTerm from './models/AdaptiveMemoryTerm';
 import AdaptiveMemory from './models/AdaptiveMemory';
 import {Database} from '@nozbe/watermelondb';
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
@@ -27,6 +28,7 @@ const adapter = new SQLiteAdapter({
 export const database = new Database({
   adapter,
   modelClasses: [
+    AdaptiveMemoryTerm,
     AdaptiveMemory,
     ChatSession,
     Message,

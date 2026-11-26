@@ -1,4 +1,4 @@
-import {readMemoryRows, writeMemoryRows, searchMemoryRows} from './memoryDatabase';
+import {readMemoryRows, writeMemoryRows, searchMemoryRows, pageMemoryRows} from './memoryDatabase';
 import {isSensitiveMemory} from './memoryPrivacy';
 import {extractFeedback, confidence, type LearningEvidence} from './learningEvidence';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -32,9 +32,9 @@ async function readLegacyEntries(): Promise<MemoryEntry[]> {
 let migrated = false;
 async function ensureMigrated(): Promise<void> {
   if (!migrated) {
-    const marker = await AsyncStorage.getItem(KEY + '/sqlite');
+    const marker = await AsyncStorage.getItem(KEY + '/sqlite-index-v10');
     if (marker !== 'true') {
-      const old = await readLegacyEntries();
+      const old = (await AsyncStorage.getItem(KEY + '/sqlite')) === 'true' ? [] : await readLegacyEntries();
       const rows = await readMemoryRows();
       const merged = new Map(old.map(e=>[e.id,e]));
       for (const row of rows) merged.set(row.id,row);
@@ -49,6 +49,7 @@ async function readEntries(): Promise<MemoryEntry[]> {
   await ensureMigrated();
   return readMemoryRows();
 }
+export function listMemoryPage(query:string,page:number){return mutate(async()=>{await ensureMigrated();return pageMemoryRows(query,page);});}
 export function findRelevantMemories(query:string): Promise<MemoryEntry[]> {
   return mutate(async()=>{await ensureMigrated(); return retrieveMemories(await searchMemoryRows([...keywords(query)]),query);});
 }

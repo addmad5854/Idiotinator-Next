@@ -15,3 +15,5 @@ Internal v0.2.0 verification: indexed memory, semantic disputes and migration re
 Verify v0.2.0 upstream UI restoration and expanded regression gates
 
 2026-11-26: Verify native downloader integrity and recovery patch 2c4e40f with all configured release gates; internal candidate only.
+
+Verify clean EOF contract correction and exact Hexagon selection regression (646966b); internal candidate only.

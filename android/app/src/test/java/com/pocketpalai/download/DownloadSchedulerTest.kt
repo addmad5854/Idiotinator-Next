@@ -137,6 +137,17 @@ class DownloadSchedulerTest {
         assertTrue(scheduler.hasRunner(ID))
     }
 
+    @Test
+    @Config(sdk = [35])
+    fun android15UsesResumableWorkManager() = runBlocking {
+        val uidt = FakeUidt { JobScheduler.RESULT_SUCCESS }
+        val scheduler = scheduler(uidt)
+        scheduler.schedule(ID, 1000, 250)
+        assertTrue(uidt.scheduled.isEmpty())
+        assertEquals(listOf(ID to 250L), work.enqueued)
+        assertTrue(scheduler.hasRunner(ID))
+    }
+
     private companion object {
         const val ID = "download-1"
     }

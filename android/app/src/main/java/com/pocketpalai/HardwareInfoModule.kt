@@ -32,6 +32,32 @@ class HardwareInfoModule(reactContext: ReactApplicationContext) :
 
   override fun getName(): String = NativeHardwareInfoSpec.NAME
 
+  override fun getBackendLogSummary(promise: Promise) {
+    Thread {
+      try {
+        val process = ProcessBuilder("logcat", "-d", "--pid=" + android.os.Process.myPid(), "-t", "1500", "-v", "brief").redirectErrorStream(true).start()
+        val categories = listOf("opencl", "hexagon", "ggml", "rnllama", "dlopen", "backend")
+        val counts = mutableMapOf<String, Int>()
+        process.inputStream.bufferedReader().useLines { lines ->
+          lines.forEach { line ->
+            val lower = line.lowercase()
+            categories.forEach { category ->
+              if (lower.contains(category)) {
+                val severity = if (line.startsWith("E/") || line.startsWith("F/")) "error" else if (line.startsWith("W/")) "warning" else "other"
+                val key = "$category:$severity"
+                counts[key] = (counts[key] ?: 0) + 1
+              }
+            }
+          }
+        }
+        val exit = process.waitFor()
+        promise.resolve(if (exit == 0) JSONObject(counts as Map<*, *>).toString() else "unavailable")
+      } catch (e: Exception) {
+        promise.resolve("unavailable")
+      }
+    }.start()
+  }
+
   override fun getThermalStatus(promise: Promise) {
     try {
       val power = reactApplicationContext.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager

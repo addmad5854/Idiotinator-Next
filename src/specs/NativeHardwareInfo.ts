@@ -36,6 +36,7 @@ export interface GPUInfo {
 export interface Spec extends TurboModule {
   getCPUInfo(): Promise<CPUInfo>;
   getThermalStatus?(): Promise<number>;
+  getBackendLogSummary?(): Promise<string>;
   getGPUInfo(): Promise<GPUInfo>;
   getChipset?(): Promise<string>; // Android only
   /**

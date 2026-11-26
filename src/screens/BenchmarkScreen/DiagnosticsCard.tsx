@@ -115,7 +115,11 @@ export const DiagnosticsCard = ({busy, onRunning}: {busy: boolean; onRunning: (v
         const cpu = await getCpuInfo();
         return typeof cpu?.thermalStatus === 'number' ? {androidThermalStatus: cpu.thermalStatus, match: cpu.thermalStatus < 3} : null;
       });
-      for (const name of ['actual_gpu_offload','math_rendering','offline_network_isolation','voice','native_logs']) {
+      await probe('native_logs', async () => {
+        const summary = await NativeHardwareInfo.getBackendLogSummary?.();
+        return summary && summary !== 'unavailable' ? {categoryCounts: JSON.parse(summary), rawLogsIncluded: false} : null;
+      });
+      for (const name of ['actual_gpu_offload','math_rendering','offline_network_isolation','voice']) {
         checks.push({name, status: 'not_tested'});
       }
       setReport(JSON.stringify({schema: 1, createdAt: new Date().toISOString(), mode: full ? 'local_inference' : 'read_only', note: 'Inventory pass means data collected; functional pass means expected output matched. Actual GPU offloading is not verified.', checks}, null, 2));

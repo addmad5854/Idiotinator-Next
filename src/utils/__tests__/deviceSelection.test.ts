@@ -1,7 +1,7 @@
 import {Platform} from 'react-native';
 import {getBackendDevicesInfo} from 'llama.rn';
 
-import {getDeviceOptions, resolveDeviceSelection} from '../deviceSelection';
+import {getDeviceOptions, resolveDeviceSelection, isHexagonAvailable} from '../deviceSelection';
 
 const discover = getBackendDevicesInfo as jest.Mock;
 const device = (deviceName: string) => ({
@@ -123,3 +123,14 @@ describe('Hexagon device selection', () => {
 });
 
 test('OpenCL and HTP remain distinct even when both report GPU type',async()=>{const os=Platform.OS;Platform.OS='android';try{discover.mockResolvedValue([{...device('HTP0'),type:'gpu'},{...device('GPUOpenCL'),type:'gpu',backend:'OpenCL'}]);const options=await getDeviceOptions();expect(options.find(o=>o.id==='gpu')?.devices).toEqual(['GPUOpenCL']);expect(options.find(o=>o.id==='hexagon')?.devices).toEqual(['HTP0']);}finally{Platform.OS=os;}});
+
+ test('preserves exact HTP choice and rejects wildcard-only availability', async () => {
+  const os = Platform.OS;
+  Platform.OS = 'android';
+  try {
+    discover.mockResolvedValue([device('HTP0'), device('HTP3')]);
+    expect(await resolveDeviceSelection({devices: ['HTP3'], n_gpu_layers: 23})).toEqual({devices: ['HTP3'], n_gpu_layers: 23});
+    discover.mockResolvedValue([device('HTP*')]);
+    expect(await isHexagonAvailable()).toBe(false);
+  } finally { Platform.OS = os; }
+});

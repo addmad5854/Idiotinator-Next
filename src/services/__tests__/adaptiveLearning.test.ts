@@ -8,7 +8,8 @@ jest.mock('@react-native-async-storage/async-storage', () => {
   const data = new Map<string,string>();
   return {__esModule:true, default:{getItem:jest.fn(async (k:string)=>data.get(k) ?? null),setItem:jest.fn(async (k:string,v:string)=>{data.set(k,v);}),clear:jest.fn(async()=>{data.clear();})}};
 });
-beforeEach(async()=>{await AsyncStorage.clear();});
+jest.mock('../memoryDatabase',()=>{let rows:unknown[]=[];return {readMemoryRows:jest.fn(async()=>JSON.parse(JSON.stringify(rows))),writeMemoryRows:jest.fn(async(v:unknown[])=>{rows=JSON.parse(JSON.stringify(v));})};});
+beforeEach(async()=>{await AsyncStorage.clear();await require('../memoryDatabase').writeMemoryRows([]);});
 test('unconfirmed candidates never enter chat retrieval',()=>{
   const e:MemoryEntry={id:'1',text:'My motorcycle is blue',source:'user',createdAt:1,evidence:{kind:'model_candidate',text:'My motorcycle is blue',recordedAt:1}};
   expect(retrieveMemories([e],'motorcycle')).toEqual([]);

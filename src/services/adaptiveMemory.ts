@@ -1,3 +1,4 @@
+import {readMemoryRows, writeMemoryRows} from './memoryDatabase';
 import {isSensitiveMemory} from './memoryPrivacy';
 import {extractFeedback, confidence, type LearningEvidence} from './learningEvidence';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -6,7 +7,7 @@ export type MemoryEntry = {id: string; text: string; source: 'user'; createdAt: 
 const KEY = '@idiotinator/adaptive-memory/v1';
 // Keep each AsyncStorage value below Android's typical per-row read limit.
 const MAX_SERIALIZED_BYTES = 1500000;
-function serializeEntries(entries: MemoryEntry[]): string {
+export function serializeEntries(entries: MemoryEntry[]): string {
   const raw = JSON.stringify(entries);
   // Three bytes per UTF-16 code unit is a conservative UTF-8 upper bound.
   if (raw.length * 3 > MAX_SERIALIZED_BYTES) throw new Error('Memory storage budget reached. Export or delete older memories.');
@@ -18,7 +19,7 @@ export function normalizeMemory(text: string): string {
   return text.trim().replace(/\s+/g, ' ').slice(0, 1000);
 }
 
-async function readEntries(): Promise<MemoryEntry[]> {
+async function readLegacyEntries(): Promise<MemoryEntry[]> {
   const raw = await AsyncStorage.getItem(KEY);
   if (!raw) return [];
   const parsed: unknown = JSON.parse(raw);
@@ -28,6 +29,26 @@ async function readEntries(): Promise<MemoryEntry[]> {
   return parsed;
 }
 
+let migrated = false;
+async function readEntries(): Promise<MemoryEntry[]> {
+  if (!migrated) {
+    const marker = await AsyncStorage.getItem(KEY + '/sqlite');
+    if (marker !== 'true') {
+      const old = await readLegacyEntries();
+      const rows = await readMemoryRows();
+      const merged = new Map(old.map(e=>[e.id,e]));
+      for (const row of rows) merged.set(row.id,row);
+      await writeMemoryRows([...merged.values()]);
+      await AsyncStorage.setItem(KEY + '/sqlite','true');
+    }
+    migrated = true;
+  }
+  return readMemoryRows();
+}
+async function persistEntries(entries: MemoryEntry[]): Promise<void> {
+  await readEntries();
+  await writeMemoryRows(entries);
+}
 function mutate<T>(fn: () => Promise<T>): Promise<T> {
   const next = queue.then(fn, fn);
   queue = next.catch(() => undefined);
@@ -35,8 +56,7 @@ function mutate<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 export async function listMemories(): Promise<MemoryEntry[]> {
-  await queue;
-  return readEntries();
+  return mutate(readEntries);
 }
 
 export function rememberExplicit(text: string): Promise<void> {
@@ -47,13 +67,13 @@ export function rememberExplicit(text: string): Promise<void> {
     const entries = await readEntries();
     if (entries.some(e => e.text.toLowerCase() === clean.toLowerCase())) return;
     entries.push({id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2), text: clean, source: 'user', createdAt: Date.now()});
-    await AsyncStorage.setItem(KEY, serializeEntries(entries));
+    await persistEntries(entries);
   });
 }
 
 export function deleteMemory(id: string): Promise<void> {
   return mutate(async () => {
-    await AsyncStorage.setItem(KEY, serializeEntries((await readEntries()).filter(e => e.id !== id)));
+    await persistEntries((await readEntries()).filter(e => e.id !== id));
   });
 }
 
@@ -91,7 +111,7 @@ export function updateMemory(id: string, text: string): Promise<void> {
     if (!clean) throw new Error('Memory cannot be empty');
     const entries = await readEntries();
     if (!entries.some(e => e.id === id)) throw new Error('Memory not found');
-    await AsyncStorage.setItem(KEY, serializeEntries(entries.map(e => e.id === id ? {...e, text: clean, evidence: undefined} : e)));
+    await persistEntries(entries.map(e => e.id === id ? {...e, text: clean, evidence: undefined} : e));
   });
 }
 
@@ -109,7 +129,7 @@ export function restoreMemories(raw: string): Promise<void> {
       ids.add(e.id);
       return {id: e.id, text: normalizeMemory(e.text), source: 'user', createdAt: e.createdAt, ...(e.evidence && ['user_correction', 'user_confirmed_success', 'model_candidate'].includes(e.evidence.kind) && typeof e.evidence.text === 'string' && normalizeMemory(e.evidence.text) === normalizeMemory(e.text) && Number.isFinite(e.evidence.recordedAt) && e.evidence.recordedAt > 0 ? {evidence: {kind: e.evidence.kind, text: normalizeMemory(e.evidence.text), recordedAt: e.evidence.recordedAt}} : {})};
     });
-    await AsyncStorage.setItem(KEY, serializeEntries(entries));
+    await persistEntries(entries);
   });
 }
 
@@ -143,7 +163,7 @@ export function learnUserClaim(input: string): Promise<void> {
     if (previous?.text.toLowerCase() === claim.text.toLowerCase()) return;
     const next = entries.filter(e => extractUserClaim(e.text)?.key !== claim.key);
     next.push({id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2), text: claim.text, source: 'user', createdAt: Date.now()});
-    await AsyncStorage.setItem(KEY, serializeEntries(next));
+    await persistEntries(next);
   });
 }
 export async function autoLearningEnabled(): Promise<boolean> {
@@ -166,7 +186,7 @@ export function learnFeedback(input: string): Promise<void> {
     const claim = extractUserClaim(text);
     const retained = evidence.kind === 'user_correction' && claim ? entries.filter(e => extractUserClaim(e.text)?.key !== claim.key) : entries;
     retained.push({id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2), text, source: 'user', createdAt: Date.now(), evidence});
-    await AsyncStorage.setItem(KEY, serializeEntries(retained));
+    await persistEntries(retained);
   });
 }
 
@@ -180,6 +200,6 @@ export function saveKnowledgeCandidate(quote: string): Promise<void> {
     if (entries.some(e => e.text.toLowerCase() === text.toLowerCase())) return;
     const now = Date.now();
     entries.push({id: now.toString(36) + '-' + Math.random().toString(36).slice(2), text, source: 'user', createdAt: now, evidence: {kind:'model_candidate', text, recordedAt:now}});
-    await AsyncStorage.setItem(KEY, serializeEntries(entries));
+    await persistEntries(entries);
   });
 }

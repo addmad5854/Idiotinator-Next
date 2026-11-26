@@ -153,5 +153,6 @@ export default schemaMigrations({
         }),
       ],
     },
+    {toVersion:9,steps:[createTable({name:'adaptive_memories',columns:[{name:'memory_id',type:'string',isIndexed:true},{name:'payload',type:'string'}]})]},
   ],
 });

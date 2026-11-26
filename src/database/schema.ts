@@ -1,8 +1,9 @@
 import {appSchema, tableSchema} from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 8,
+  version: 9,
   tables: [
+    tableSchema({name:'adaptive_memories',columns:[{name:'memory_id',type:'string',isIndexed:true},{name:'payload',type:'string'}]}),
     tableSchema({
       name: 'chat_sessions',
       columns: [

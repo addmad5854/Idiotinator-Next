@@ -76,3 +76,19 @@ test('extraction cannot omit negation from a sentence',()=>{expect(groundedCandi
 test('explicit secrets are not persisted',async()=>{await rememberExplicit('My password is abcdef');expect(await listMemories()).toEqual([]);});
 
 test('semantic dispute parser rejects unknown IDs and malformed output',()=>{const e:MemoryEntry={id:'a',text:'My car is blue',source:'user',createdAt:1};expect(parseDisputes('["a","unknown"]',[e])).toEqual(['a']);expect(parseDisputes('not JSON',[e])).toEqual([]);expect(retrieveMemories([{...e,disputed:true}],'car')).toEqual([]);});
+
+test('legacy import retries after failed database write and cleans source only after success',async()=>{
+  jest.resetModules();
+  const storage=require('@react-native-async-storage/async-storage').default;
+  const db=require('../memoryDatabase');
+  const memory=require('../adaptiveMemory');
+  const key='@idiotinator/adaptive-memory/v1';
+  const entry={id:'legacy',text:'My car is blue',source:'user',createdAt:1};
+  await storage.setItem(key,JSON.stringify([entry]));
+  db.writeMemoryRows.mockRejectedValueOnce(new Error('disk failure'));
+  await expect(memory.listMemories()).rejects.toThrow('disk failure');
+  expect(await storage.getItem(key)).not.toBeNull();
+  expect(await memory.listMemories()).toEqual([entry]);
+  expect(await storage.getItem(key)).toBeNull();
+  expect(await memory.listMemories()).toEqual([entry]);
+});

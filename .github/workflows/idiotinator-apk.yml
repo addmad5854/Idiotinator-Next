@@ -142,9 +142,20 @@ jobs:
         uses: ./.github/actions/setup-hexagon-sdk
       - name: Set up ccache
         uses: ./.github/actions/setup-ccache
+        with:
+          max-size: 4G
+      - name: Restore native compilation cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules/llama.rn/android/.cxx
+          key: ${{ runner.os }}-llama-native-v1-${{ env.ORG_GRADLE_PROJECT_reactNativeArchitectures }}-${{ hashFiles('yarn.lock', 'patches/llama.rn*', 'android/build.gradle', 'android/gradle.properties', '.github/actions/setup-hexagon-sdk/action.yml') }}
       - name: Build Android Release
         working-directory: android
         run: bash gradlew assembleProdRelease --stacktrace --build-cache --console=plain -PrnllamaBuildFromSource=true -PreactNativeArchitectures="$ORG_GRADLE_PROJECT_reactNativeArchitectures"
+
+      - name: Report compiler cache statistics
+        if: always()
+        run: ccache --show-stats
 
       - name: Verify prod APK has no automation-bridge code (DCE sanity check)
         run: |

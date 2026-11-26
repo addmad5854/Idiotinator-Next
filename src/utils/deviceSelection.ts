@@ -128,7 +128,7 @@ export async function getDeviceOptions(): Promise<DeviceOption[]> {
   // Android: Build options based on available devices
   const devices = await getAvailableDevices();
   const hexagonDevice = selectHexagonDevice(devices);
-  const gpuDev = devices.find(d => d.type === 'gpu');
+  const gpuDev = devices.find(d => d.type === 'gpu' && !!d.deviceName && !/[*?]/.test(d.deviceName));
 
   // Option 1: CPU (always available, recommended for reliability)
   // CPU supports all flash attention types
@@ -155,7 +155,8 @@ export async function getDeviceOptions(): Promise<DeviceOption[]> {
       n_gpu_layers: 99,
       default_flash_attn_type: 'off', // Required for OpenCL
       valid_flash_attn_types: ['off'], // OpenCL only supports 'off'
-      tag: 'Fastest',
+      tag: 'Experimental',
+      experimental: true,
       platform: 'android',
       deviceInfo: gpuDev,
     });
@@ -260,7 +261,7 @@ export function validateModelQuantizationForDevice(
           warning:
             `OpenCL only supports Q4_0 and Q6_K quantization.\n\n` +
             `This model (${quant.toUpperCase()}) will fall back to CPU, ` +
-            `resulting in very slow inference (~5-10 tokens/sec).`,
+            `so acceleration and speed are not guaranteed.`,
           recommendation:
             `Recommendations:\n` +
             `• Use a Q4_0 or Q6_K version of this model\n` +
@@ -314,7 +315,7 @@ export async function isHexagonAvailable(): Promise<boolean> {
  */
 export async function isGpuAvailable(): Promise<boolean> {
   const devices = await getAvailableDevices();
-  return devices.some(d => d.type === 'gpu');
+  return devices.some(d => d.type === 'gpu' && !!d.deviceName && !/[*?]/.test(d.deviceName));
 }
 
 /**

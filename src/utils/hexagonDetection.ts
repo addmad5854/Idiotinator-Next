@@ -118,6 +118,6 @@ export async function getHexagonInfo(chipset?: string): Promise<HexagonInfo[]> {
  * Check if device has any supported Hexagon DSP
  */
 export async function hasSupportedHexagon(): Promise<boolean> {
-  const hexagonInfo = await getHexagonInfo();
-  return hexagonInfo.some(info => info.supported);
+  const devices = await getAvailableDevices();
+  return devices.some(d => d.deviceName?.startsWith('HTP') && !/[*?]/.test(d.deviceName));
 }

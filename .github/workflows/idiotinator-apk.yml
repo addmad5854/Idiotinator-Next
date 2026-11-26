@@ -147,6 +147,11 @@ jobs:
         with:
           path: node_modules/llama.rn/android/.cxx
           key: ${{ runner.os }}-llama-native-v1-${{ env.ORG_GRADLE_PROJECT_reactNativeArchitectures }}-${{ hashFiles('yarn.lock', 'patches/llama.rn*', 'android/build.gradle', 'android/gradle.properties', '.github/actions/setup-hexagon-sdk/action.yml') }}
+      - name: Compile patched native engine separately
+        working-directory: android
+        run: |
+          set -euo pipefail
+          bash gradlew :llama.rn:assembleRelease --stacktrace --build-cache --console=plain -PrnllamaBuildFromSource=true -PreactNativeArchitectures="$ORG_GRADLE_PROJECT_reactNativeArchitectures"
       - name: Build Android Release
         working-directory: android
         run: bash gradlew assembleProdRelease --stacktrace --build-cache --console=plain -PrnllamaBuildFromSource=true -PreactNativeArchitectures="$ORG_GRADLE_PROJECT_reactNativeArchitectures"

@@ -57,7 +57,7 @@ jobs:
         run: yarn tsc --noEmit
 
       - name: Test adaptive learning safety
-        run: yarn test --runInBand src/services/__tests__/adaptiveLearning.test.ts
+        run: yarn test --runInBand --coverage=false src/services/__tests__/adaptiveLearning.test.ts src/database/__tests__/schema.test.ts
       - name: Test adaptive reasoning
         run: yarn test --runInBand --coverage=false src/utils/__tests__/diagnosticStatus.test.ts src/components/MarkdownView/__tests__/normalizeBreakTags.test.ts src/utils/__tests__/idiotinatorReasoning.test.ts src/components/MarkdownView/__tests__/invariants.test.ts src/components/MarkdownView/__tests__/MarkdownView.test.tsx
 
@@ -132,7 +132,7 @@ jobs:
           s = p.read_text()
           s = s.replace('// Cloud benchmark configuration intentionally omitted in standalone preview.', 'apply plugin: "com.google.gms.google-services"')
           s = s.replace('applicationId "com.personal.idiotinator.next"', 'applicationId "com.personal.idiotinator.next"\n        resValue "string", "build_config_package", "com.pocketpal"')
-          s = s.replace('versionCode 161', 'versionCode 162').replace('versionName "0.1.4"', 'versionName "0.1.5"')
+          assert 'versionCode 169' in s and 'versionName "0.2.0"' in s, 'Unexpected release version'
           if os.environ['ORG_GRADLE_PROJECT_reactNativeArchitectures'] == 'arm64-v8a':
               s = s.replace('abiFilters "arm64-v8a", "x86_64"', 'abiFilters "arm64-v8a"')
           p.write_text(s)

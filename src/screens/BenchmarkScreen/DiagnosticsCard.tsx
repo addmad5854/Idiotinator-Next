@@ -117,7 +117,7 @@ export const DiagnosticsCard = ({busy, onRunning}: {busy: boolean; onRunning: (v
       });
       await probe('native_logs', async () => {
         const summary = await NativeHardwareInfo.getBackendLogSummary?.();
-        return summary && summary !== 'unavailable' ? {categoryCounts: JSON.parse(summary), rawLogsIncluded: false} : null;
+        return summary && summary !== 'unavailable' ? {...JSON.parse(summary), rawLogsIncluded: false, currentContextVerified: false} : null;
       });
       for (const name of ['actual_gpu_offload','math_rendering','offline_network_isolation','voice']) {
         checks.push({name, status: 'not_tested'});

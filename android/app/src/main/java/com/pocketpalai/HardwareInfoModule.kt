@@ -38,9 +38,26 @@ class HardwareInfoModule(reactContext: ReactApplicationContext) :
         val process = ProcessBuilder("logcat", "-d", "--pid=" + android.os.Process.myPid(), "-t", "1500", "-v", "brief").redirectErrorStream(true).start()
         val categories = listOf("opencl", "hexagon", "ggml", "rnllama", "dlopen", "backend")
         val counts = mutableMapOf<String, Int>()
+        val evidence = JSONArray()
+        val offload = Regex("offloaded (\\d+)/(\\d+) layers to GPU")
+        val weights = Regex("load_tensors:\\s+(CPU(?:_REPACK)?|OpenCL|HTP\\d+(?:-REPACK)?|MTL\\w*)\\s+model buffer size\\s*=\\s*([\\d.]+)\\s*MiB")
+        val failure = Regex("(?i)(opencl|hexagon|ggml|rnllama|dlopen|backend).*(failed|error|unsupported|not found|unavailable|denied)")
+        val failures = JSONArray()
         process.inputStream.bufferedReader().useLines { lines ->
           lines.forEach { line ->
             val lower = line.lowercase()
+            offload.find(line)?.let { m ->
+              if (evidence.length() < 100) evidence.put(JSONObject().put("kind", "offload").put("layers", m.groupValues[1].toInt()).put("total", m.groupValues[2].toInt()))
+            }
+            weights.find(line)?.let { m ->
+              if (evidence.length() < 100) evidence.put(JSONObject().put("kind", "weights").put("device", m.groupValues[1]).put("mib", m.groupValues[2].toDouble()))
+            }
+            failure.find(line)?.let { m ->
+              if (failures.length() < 50) {
+                // Export only allowlisted diagnostic words, not paths or user text.
+                failures.put(JSONObject().put("component", m.groupValues[1].lowercase()).put("reason", m.groupValues[2].lowercase()))
+              }
+            }
             categories.forEach { category ->
               if (lower.contains(category)) {
                 val severity = if (line.startsWith("E/") || line.startsWith("F/")) "error" else if (line.startsWith("W/")) "warning" else "other"
@@ -51,7 +68,7 @@ class HardwareInfoModule(reactContext: ReactApplicationContext) :
           }
         }
         val exit = process.waitFor()
-        promise.resolve(if (exit == 0) JSONObject(counts as Map<*, *>).toString() else "unavailable")
+        promise.resolve(if (exit == 0) JSONObject().put("categoryCounts", JSONObject(counts as Map<*, *>)).put("evidence", evidence).put("failures", failures).put("scope", "recent_process_history_not_current_context").toString() else "unavailable")
       } catch (e: Exception) {
         promise.resolve("unavailable")
       }

@@ -76,7 +76,7 @@ jobs:
               "client_info": {
                 "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
                 "android_client_info": {
-                  "package_name": "com.pocketpalai"
+                  "package_name": "com.personal.idiotinator.next"
                 }
               },
               "api_key": [{
@@ -108,6 +108,17 @@ jobs:
           GOOGLE_IOS_CLIENT_ID=dummy-ios-client-id.apps.googleusercontent.com
           GOOGLE_WEB_CLIENT_ID=dummy-web-client-id.apps.googleusercontent.com
           EOL
+
+      - name: Apply standalone package configuration
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('android/app/build.gradle')
+          s = p.read_text()
+          s = s.replace('// Cloud benchmark configuration intentionally omitted in standalone preview.', 'apply plugin: "com.google.gms.google-services"')
+          s = s.replace('applicationId "com.personal.idiotinator.next"', 'applicationId "com.personal.idiotinator.next"\n        resValue "string", "build_config_package", "com.pocketpal"')
+          p.write_text(s)
+          PY
 
       - name: Build Android Release
         working-directory: android

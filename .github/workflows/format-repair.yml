@@ -1,0 +1,51 @@
+name: One-time formatting repair
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/format-repair.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: format-repair
+  cancel-in-progress: false
+jobs:
+  repair:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --global yarn@1.22.22
+      - run: yarn install --frozen-lockfile
+        env:
+          HUSKY: '0'
+      - name: Apply formatting fixes only
+        run: |
+          yarn exec -- prettier --write 'src/**/*.{js,ts,tsx}'
+          git diff --check
+          git diff --stat
+      - name: Verify lint
+        run: yarn lint
+      - name: Verify TypeScript
+        run: yarn typecheck
+      - name: Verify unit tests
+        run: yarn test --ci --runInBand
+      - name: Commit verified formatting
+        run: |
+          git add -u -- src
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Apply verified source formatting corrections'
+          git push origin HEAD:main
+      - name: Preserve repair diff if verification fails
+        if: failure()
+        run: git diff -- src > formatting-repair.patch
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: formatting-repair-diff
+          path: formatting-repair.patch

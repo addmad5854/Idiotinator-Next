@@ -1,7 +1,7 @@
 import {isSensitiveMemory} from '../memoryPrivacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {retrieveMemories, rememberExplicit, listMemories, learnFeedback, setAutoLearningEnabled, setMemoryEnabled, saveKnowledgeCandidate, updateMemory, exportMemories, restoreMemories, type MemoryEntry} from '../adaptiveMemory';
-import {groundedCandidate} from '../knowledgeExtraction';
+import {extractKnowledge, groundedCandidate} from '../knowledgeExtraction';
 import {confidence} from '../learningEvidence';
 
 jest.mock('@react-native-async-storage/async-storage', () => {
@@ -58,4 +58,15 @@ test('explicit confirmation promotes a candidate',async()=>{
 });
 test('invalid backup evidence cannot promote a candidate',async()=>{
   await expect(restoreMemories(JSON.stringify({schema:1,entries:[{id:'bad',text:'My motorcycle is blue',source:'user',createdAt:1,evidence:{kind:'model_candidate',text:'different',recordedAt:1}}]}))).rejects.toThrow('Invalid memory evidence');
+});
+
+test('aborted extraction waits for native stop and discards result',async()=>{
+  const controller=new AbortController();
+  let finish!: (value:{text:string;content:string})=>void;
+  const completion=jest.fn(()=>new Promise<{text:string;content:string}>(resolve=>{finish=resolve;}));
+  const stopCompletion=jest.fn(async()=>{finish({text:'My motorcycle is painted blue',content:'My motorcycle is painted blue'});});
+  const pending=extractKnowledge({completion,stopCompletion},'My motorcycle is painted blue',controller.signal);
+  controller.abort();
+  expect(await pending).toBeNull();
+  expect(stopCompletion).toHaveBeenCalledTimes(1);
 });

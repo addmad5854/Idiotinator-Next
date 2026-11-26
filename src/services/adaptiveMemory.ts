@@ -60,3 +60,39 @@ export function retrieveMemories(entries: MemoryEntry[], query: string): MemoryE
     .sort((a,b) => b.score - a.score || b.entry.createdAt - a.entry.createdAt)
     .slice(0, 5).map(x => x.entry);
 }
+
+export function updateMemory(id: string, text: string): Promise<void> {
+  return mutate(async () => {
+    const clean = normalizeMemory(text);
+    if (!clean) throw new Error('Memory cannot be empty');
+    const entries = await readEntries();
+    if (!entries.some(e => e.id === id)) throw new Error('Memory not found');
+    await AsyncStorage.setItem(KEY, JSON.stringify(entries.map(e => e.id === id ? {...e, text: clean} : e)));
+  });
+}
+
+export async function exportMemories(): Promise<string> {
+  return JSON.stringify({schema: 1, entries: await listMemories()}, null, 2);
+}
+
+export function restoreMemories(raw: string): Promise<void> {
+  return mutate(async () => {
+    const data = JSON.parse(raw);
+    if (data.schema !== 1 || !Array.isArray(data.entries) || data.entries.length > LIMIT) throw new Error('Invalid backup');
+    const ids = new Set<string>();
+    const entries: MemoryEntry[] = data.entries.map((e: MemoryEntry) => {
+      if (!e || typeof e.id !== 'string' || !e.id || ids.has(e.id) || typeof e.text !== 'string' || !normalizeMemory(e.text) || e.source !== 'user' || !Number.isFinite(e.createdAt)) throw new Error('Invalid memory entry');
+      ids.add(e.id);
+      return {id: e.id, text: normalizeMemory(e.text), source: 'user', createdAt: e.createdAt};
+    });
+    await AsyncStorage.setItem(KEY, JSON.stringify(entries));
+  });
+}
+
+const ENABLE_KEY = KEY + '/enabled';
+export async function memoryEnabled(): Promise<boolean> {
+  return (await AsyncStorage.getItem(ENABLE_KEY)) !== 'false';
+}
+export async function setMemoryEnabled(enabled: boolean): Promise<void> {
+  await AsyncStorage.setItem(ENABLE_KEY, String(enabled));
+}

@@ -25,7 +25,7 @@ interface MarkdownViewProps {
   variant?: MarkdownVariant;
 }
 
-const MD4C_FLAGS: Md4cFlags = {latexMath: false, admonitions: false};
+const MD4C_FLAGS: Md4cFlags = {latexMath: true, admonitions: false};
 
 const openLink = ({url}: LinkPressEvent) => {
   Linking.openURL(url);

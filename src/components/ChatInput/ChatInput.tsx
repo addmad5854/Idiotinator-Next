@@ -624,7 +624,7 @@ export const ChatInput = observer(
                           color: onSurfaceColor,
                         },
                       ]}>
-                      Pal:{' '}
+                      Assistant:{' '}
                       <Text
                         style={[
                           styles.palNameValueCompact,

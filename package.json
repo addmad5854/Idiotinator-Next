@@ -160,7 +160,7 @@
   },
   "enriched-markdown": {
     "enableCodeHighlight": true,
-    "enableMath": false,
+    "enableMath": true,
     "enableVideo": false
   }
 }

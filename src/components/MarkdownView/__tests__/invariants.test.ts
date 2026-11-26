@@ -46,10 +46,10 @@ describe('markdown renderer invariants', () => {
     ).toEqual([path.join('components', 'MarkdownView', 'MarkdownView.tsx')]);
   });
 
-  it('enables code highlighting explicitly and keeps math and video off', () => {
+  it('enables code highlighting explicitly and enables math and keeps video off', () => {
     expect(pkgJson['enriched-markdown']).toEqual({
       enableCodeHighlight: true,
-      enableMath: false,
+      enableMath: true,
       enableVideo: false,
     });
   });

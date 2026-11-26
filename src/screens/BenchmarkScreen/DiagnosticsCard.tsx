@@ -71,6 +71,13 @@ export const DiagnosticsCard = ({busy, onRunning}: {busy: boolean; onRunning: (v
         };
       });
       await probe('memory_bytes', async () => ({total: await DeviceInfo.getTotalMemory(), appUsed: await DeviceInfo.getUsedMemory(), available: await NativeHardwareInfo.getAvailableMemory()}));
+      await probe('model_recommendation', async () => {
+        const available = await NativeHardwareInfo.getAvailableMemory();
+        const total = await DeviceInfo.getTotalMemory();
+        const budget = Math.max(0, Math.min(available - 768 * 1048576, total * 0.6));
+        const devices = await getBackendDevicesInfo();
+        return {availableBytes: available, conservativeWeightBudgetBytes: Math.floor(budget * 0.65), gpuDetected: !!devices?.some(d => d.type === 'gpu'), guidance: 'Prefer a smaller quantized model within the weight budget. Context cache and runtime overhead vary; this is not a guaranteed fit.'};
+      });
       await probe('storage_bytes', async () => ({free: await DeviceInfo.getFreeDiskStorage()}));
       await probe('loaded_context', async () => {
         const c = modelStore.context;

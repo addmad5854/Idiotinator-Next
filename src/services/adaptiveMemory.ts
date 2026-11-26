@@ -1,4 +1,4 @@
-import {extractFeedback, type LearningEvidence} from './learningEvidence';
+import {extractFeedback, confidence, type LearningEvidence} from './learningEvidence';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type MemoryEntry = {id: string; text: string; source: 'user'; createdAt: number; evidence?: LearningEvidence};
@@ -69,12 +69,12 @@ export function retrieveMemories(entries: MemoryEntry[], query: string, charBudg
   const ranked = entries.map(entry => {
     const terms = keywords(entry.text);
     const overlap = [...terms].filter(w => words.has(w)).length;
-    return {entry, score: overlap / Math.sqrt(Math.max(1, terms.size))};
+    return {entry, score: overlap / Math.sqrt(Math.max(1, terms.size)) * confidence({key: entry.id, claim: entry.text, disputed: false, evidence: [entry.evidence ?? {kind: 'user_statement', text: entry.text, recordedAt: entry.createdAt}]})};
   }).filter(x => x.score > 0).sort((a,b) => b.score - a.score || b.entry.createdAt - a.entry.createdAt);
   const result: MemoryEntry[] = [];
   let remaining = Math.max(0, charBudget);
   for (const {entry} of ranked) {
-    const cost = JSON.stringify(entry.text).length + 2;
+    const cost = JSON.stringify({text: entry.text, source: entry.evidence?.kind ?? 'user_statement'}).length + 2;
     if (cost > remaining) continue;
     result.push(entry);
     remaining -= cost;
@@ -105,7 +105,7 @@ export function restoreMemories(raw: string): Promise<void> {
     const entries: MemoryEntry[] = data.entries.map((e: MemoryEntry) => {
       if (!e || typeof e.id !== 'string' || !e.id || ids.has(e.id) || typeof e.text !== 'string' || !normalizeMemory(e.text) || e.source !== 'user' || !Number.isFinite(e.createdAt)) throw new Error('Invalid memory entry');
       ids.add(e.id);
-      return {id: e.id, text: normalizeMemory(e.text), source: 'user', createdAt: e.createdAt, ...(e.evidence && ['user_correction', 'user_confirmed_success'].includes(e.evidence.kind) && typeof e.evidence.text === 'string' && Number.isFinite(e.evidence.recordedAt) ? {evidence: {kind: e.evidence.kind, text: normalizeMemory(e.evidence.text), recordedAt: e.evidence.recordedAt}} : {})};
+      return {id: e.id, text: normalizeMemory(e.text), source: 'user', createdAt: e.createdAt, ...(e.evidence && ['user_correction', 'user_confirmed_success', 'model_candidate'].includes(e.evidence.kind) && typeof e.evidence.text === 'string' && Number.isFinite(e.evidence.recordedAt) ? {evidence: {kind: e.evidence.kind, text: normalizeMemory(e.evidence.text), recordedAt: e.evidence.recordedAt}} : {})};
     });
     await AsyncStorage.setItem(KEY, serializeEntries(entries));
   });
@@ -159,6 +159,19 @@ export function learnFeedback(input: string): Promise<void> {
     const entries = await readEntries();
     if (entries.some(e => e.text.toLowerCase() === text.toLowerCase() && e.evidence?.kind === evidence.kind)) return;
     entries.push({id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2), text, source: 'user', createdAt: Date.now(), evidence});
+    await AsyncStorage.setItem(KEY, serializeEntries(entries));
+  });
+}
+
+export function saveKnowledgeCandidate(quote: string): Promise<void> {
+  return mutate(async () => {
+    if (!(await memoryEnabled()) || !(await autoLearningEnabled())) return;
+    const text = normalizeMemory(quote);
+    if (!text) return;
+    const entries = await readEntries();
+    if (entries.some(e => e.text.toLowerCase() === text.toLowerCase())) return;
+    const now = Date.now();
+    entries.push({id: now.toString(36) + '-' + Math.random().toString(36).slice(2), text, source: 'user', createdAt: now, evidence: {kind:'model_candidate', text, recordedAt:now}});
     await AsyncStorage.setItem(KEY, serializeEntries(entries));
   });
 }

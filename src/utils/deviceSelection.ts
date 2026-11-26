@@ -237,8 +237,8 @@ export function validateModelQuantizationForDevice(
   const quant = detectQuantizationType(modelFilename);
 
   if (!quant) {
-    // Can't detect quantization, assume it's okay
-    return {valid: true};
+    // A filename is not proof of accelerator compatibility.
+    return deviceOption.id === 'cpu' ? {valid: true} : {valid: true, warning: 'Quantization could not be identified from the filename. Accelerator compatibility is unverified.'};
   }
 
   // iOS Metal: All quantizations supported
@@ -262,7 +262,7 @@ export function validateModelQuantizationForDevice(
           valid: false,
           warning:
             `OpenCL only supports Q4_0 and Q6_K quantization.\n\n` +
-            `This model (${quant.toUpperCase()}) will fall back to CPU, ` +
+            `This model (${quant.toUpperCase()}) may require CPU execution, ` +
             `so acceleration and speed are not guaranteed.`,
           recommendation:
             `Recommendations:\n` +
@@ -273,8 +273,10 @@ export function validateModelQuantizationForDevice(
       }
     }
 
-    // Hexagon: All quantizations supported
-    // CPU: All quantizations supported
+    if (deviceOption.id === 'hexagon') {
+      return {valid: true, warning: 'Hexagon compatibility is unverified for this model; confirm actual offload with an inference test.'};
+    }
+    // CPU remains the conservative baseline.
   }
 
   return {valid: true};

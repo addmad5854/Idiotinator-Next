@@ -33,7 +33,6 @@ import {ROUTES} from './src/utils/navigationConstants';
 import {
   SidebarContent,
   ModelsHeaderRight,
-  PalHeaderRight,
   HeaderLeft,
   AppWithMigration,
   TTSSetupSheet,
@@ -163,9 +162,8 @@ const App = observer(() => {
                             name={ROUTES.PALS}
                             component={gestureHandlerRootHOC(PalsScreen)}
                             options={{
-                              headerRight: () => <PalHeaderRight />,
                               headerStyle: styles.headerWithoutDivider,
-                              title: currentL10n.screenTitles.pals,
+                              title: 'AI Studio',
                             }}
                           />
                           <Drawer.Screen
@@ -182,7 +180,7 @@ const App = observer(() => {
                             component={gestureHandlerRootHOC(BenchmarkScreen)}
                             options={{
                               headerStyle: styles.headerWithoutDivider,
-                              title: currentL10n.screenTitles.benchmark,
+                              title: 'Performance',
                             }}
                           />
                           <Drawer.Screen

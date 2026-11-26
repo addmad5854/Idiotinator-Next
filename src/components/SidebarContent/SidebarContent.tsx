@@ -558,7 +558,7 @@ export const SidebarContent: React.FC<DrawerContentComponentProps> = observer(
               testID="drawer-item-chat"
             />
             <Drawer.Item
-              label="Personas"
+              label="AI Studio"
               icon={() => <PalIcon stroke={theme.colors.primary} />}
               onPress={() => navigateTo(ROUTES.PALS)}
               style={styles.menuDrawerItem}

@@ -26,7 +26,7 @@ import {TokenColors} from './types';
 
 // Light base colors (verbatim from src/utils/theme.ts:111-147).
 const LIGHT_PRIMARY = '#333333';
-const LIGHT_SECONDARY = '#1E4DF6';
+const LIGHT_SECONDARY = '#087F75';
 const LIGHT_TERTIARY = '#7880FF';
 const LIGHT_ERROR = '#FF653F';
 const LIGHT_BACKGROUND = '#ffffff';
@@ -165,12 +165,12 @@ export const lightColors: TokenColors = {
 // differs visibly from the current dark Theme value, the current value
 // wins to avoid visual regression (tracked as a designer follow-up).
 const DARK_PRIMARY = '#DADDE6';
-const DARK_SECONDARY = '#95ABE6';
+const DARK_SECONDARY = '#78DCC8';
 const DARK_TERTIARY = '#80E6E4';
 const DARK_ERROR = '#FF653F';
-const DARK_BACKGROUND = '#000000';
+const DARK_BACKGROUND = '#10171B';
 const DARK_ON_BACKGROUND = '#ffffff';
-const DARK_SURFACE = '#0E0E0E';
+const DARK_SURFACE = '#182328';
 const DARK_ON_SURFACE = '#E2E2E2';
 const DARK_INVERSE_ON_SURFACE = '#333333';
 
@@ -251,7 +251,7 @@ export const darkColors: TokenColors = {
   menuDangerText: DARK_ERROR,
 
   // Messages
-  authorBubbleBackground: '#212121',
+  authorBubbleBackground: '#23433F',
   receivedMessageDocumentIcon: DARK_PRIMARY,
   sentMessageDocumentIcon: DARK_ON_SURFACE,
   userAvatarImageBackground: 'transparent',
@@ -264,9 +264,9 @@ export const darkColors: TokenColors = {
   searchBarBackground: 'rgba(28, 28, 30, 0.92)',
 
   // Thinking bubble
-  thinkingBubbleBackground: '#142e4d',
-  thinkingBubbleText: '#6abaff',
-  thinkingBubbleBorder: 'rgba(74, 140, 199, 0.6)',
+  thinkingBubbleBackground: '#183B36',
+  thinkingBubbleText: '#9CE8D5',
+  thinkingBubbleBorder: 'rgba(120, 220, 200, 0.6)',
   thinkingBubbleShadow: '#4a9fff',
   thinkingBubbleChevronBackground: 'rgba(74, 140, 199, 0.15)',
   thinkingBubbleChevronBorder: 'rgba(74, 140, 199, 0.3)',

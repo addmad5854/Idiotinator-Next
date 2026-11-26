@@ -14,8 +14,10 @@ export async function chooseReasoning(
   signal: AbortSignal,
 ): Promise<ReasoningLevel> {
   if (signal.aborted) return 'standard';
-  if (/^(hi|hello|hey|thanks|thank you|good morning|good evening|how are you|hello,? how are you)[?!. ]*$/i.test(prompt.trim())) return 'instant';
+  if (/^(hi|hello|hey|thanks|thank you|good morning|good evening|how are you|how are you feeling|how is it going|how's it going|good afternoon|good night|hello,? how are you)[?!. ]*$/i.test(prompt.trim())) return 'instant';
   if (/^\s*(?:prove|derive)\b/i.test(prompt)) return 'deep';
+  // Short conversational turns do not justify a second model invocation.
+  if (/^(?:what is your name|who are you|what can you do|can you help me|nice to meet you)[?!. ]*$/i.test(prompt.trim())) return 'instant';
   try {
     const result = await engine.completion({
       messages: [

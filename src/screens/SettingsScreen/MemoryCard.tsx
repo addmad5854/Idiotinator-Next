@@ -1,11 +1,12 @@
 import React, {useEffect, useState} from 'react';
 import {Alert, Share, View} from 'react-native';
 import {Button, Card, Switch, Text, TextInput} from 'react-native-paper';
-import {listMemories, memoryEnabled, setMemoryEnabled, updateMemory, deleteMemory, exportMemories, restoreMemories, type MemoryEntry} from '../../services/adaptiveMemory';
+import {listMemories, memoryEnabled, setMemoryEnabled, updateMemory, deleteMemory, exportMemories, restoreMemories, autoLearningEnabled, setAutoLearningEnabled, type MemoryEntry} from '../../services/adaptiveMemory';
 
 export function MemoryCard() {
   const [entries, setEntries] = useState<MemoryEntry[]>([]);
   const [enabled, setEnabled] = useState(false);
+  const [auto, setAuto] = useState(false);
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
@@ -16,6 +17,7 @@ export function MemoryCard() {
   async function refresh() {
     setEntries(await listMemories());
     setEnabled(await memoryEnabled());
+    setAuto(await autoLearningEnabled());
     setReady(true);
   }
   useEffect(() => {refresh().catch(() => Alert.alert('Memory unavailable', 'Could not read local memory.'));}, []);
@@ -32,6 +34,7 @@ export function MemoryCard() {
       <Text>Use memory in chat</Text>
       <Switch value={enabled} disabled={!ready || busy} onValueChange={v => {void run(() => setMemoryEnabled(v));}} />
     </View>
+    <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}><Text>Automatically learn preferences</Text><Switch value={auto} disabled={!ready || busy || !enabled} onValueChange={v => {void run(() => setAutoLearningEnabled(v));}} /></View>
     <Text>Stored locally. Disabling memory does not delete existing entries.</Text>
     <TextInput label="Search memories" value={query} onChangeText={v => {setQuery(v); setPage(0);}} />
     <Text>{filtered.length} matching memories</Text>

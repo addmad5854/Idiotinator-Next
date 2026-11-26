@@ -66,7 +66,9 @@ export async function resolveDeviceSelection(selection: {
     return snapshot;
   }
 
-  const device = selectHexagonDevice(await getAvailableDevices());
+  const available = await getAvailableDevices();
+  const requested = snapshot.devices?.find(name => name.startsWith('HTP'));
+  const device = available.find(d => d.deviceName === requested && !/[*?]/.test(d.deviceName)) ?? selectHexagonDevice(available);
   return device
     ? {...snapshot, devices: [device.deviceName]}
     : {devices: ['CPU'], n_gpu_layers: 0};
@@ -307,7 +309,7 @@ export function getDefaultDeviceConfig(): {
  */
 export async function isHexagonAvailable(): Promise<boolean> {
   const devices = await getAvailableDevices();
-  return devices.some(d => d.deviceName?.startsWith('HTP'));
+  return !!selectHexagonDevice(devices);
 }
 
 /**

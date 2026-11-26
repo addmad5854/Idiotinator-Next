@@ -2,7 +2,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type MemoryEntry = {id: string; text: string; source: 'user'; createdAt: number};
 const KEY = '@idiotinator/adaptive-memory/v1';
-const LIMIT = 500;
+// Keep each AsyncStorage value below Android's typical per-row read limit.
+const MAX_SERIALIZED_BYTES = 1500000;
+function serializeEntries(entries: MemoryEntry[]): string {
+  const raw = JSON.stringify(entries);
+  // Three bytes per UTF-16 code unit is a conservative UTF-8 upper bound.
+  if (raw.length * 3 > MAX_SERIALIZED_BYTES) throw new Error('Memory storage budget reached. Export or delete older memories.');
+  return raw;
+}
 let queue: Promise<unknown> = Promise.resolve();
 
 export function normalizeMemory(text: string): string {
@@ -36,15 +43,14 @@ export function rememberExplicit(text: string): Promise<void> {
     if (!clean) return;
     const entries = await readEntries();
     if (entries.some(e => e.text.toLowerCase() === clean.toLowerCase())) return;
-    if (entries.length >= LIMIT) throw new Error('Memory limit reached');
     entries.push({id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2), text: clean, source: 'user', createdAt: Date.now()});
-    await AsyncStorage.setItem(KEY, JSON.stringify(entries));
+    await AsyncStorage.setItem(KEY, serializeEntries(entries));
   });
 }
 
 export function deleteMemory(id: string): Promise<void> {
   return mutate(async () => {
-    await AsyncStorage.setItem(KEY, JSON.stringify((await readEntries()).filter(e => e.id !== id)));
+    await AsyncStorage.setItem(KEY, serializeEntries((await readEntries()).filter(e => e.id !== id)));
   });
 }
 
@@ -82,7 +88,7 @@ export function updateMemory(id: string, text: string): Promise<void> {
     if (!clean) throw new Error('Memory cannot be empty');
     const entries = await readEntries();
     if (!entries.some(e => e.id === id)) throw new Error('Memory not found');
-    await AsyncStorage.setItem(KEY, JSON.stringify(entries.map(e => e.id === id ? {...e, text: clean} : e)));
+    await AsyncStorage.setItem(KEY, serializeEntries(entries.map(e => e.id === id ? {...e, text: clean} : e)));
   });
 }
 
@@ -93,7 +99,7 @@ export async function exportMemories(): Promise<string> {
 export function restoreMemories(raw: string): Promise<void> {
   return mutate(async () => {
     const data = JSON.parse(raw);
-    if (data.schema !== 1 || !Array.isArray(data.entries) || data.entries.length > LIMIT) throw new Error('Invalid backup');
+    if (data.schema !== 1 || !Array.isArray(data.entries) || raw.length > MAX_SERIALIZED_BYTES) throw new Error('Invalid backup');
     const ids = new Set<string>();
     const entries: MemoryEntry[] = data.entries.map((e: MemoryEntry) => {
       if (!e || typeof e.id !== 'string' || !e.id || ids.has(e.id) || typeof e.text !== 'string' || !normalizeMemory(e.text) || e.source !== 'user' || !Number.isFinite(e.createdAt)) throw new Error('Invalid memory entry');

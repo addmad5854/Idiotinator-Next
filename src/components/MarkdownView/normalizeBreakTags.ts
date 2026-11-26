@@ -75,47 +75,8 @@ export const normalizeBreakTags = (text: string): string => {
     if (fence) {displayOpen = -1; continue;}
     if (/^\s*\\\[\s*$/.test(line)) displayOpen = i;
     else if (displayOpen >= 0 && /^\s*\\\]\s*$/.test(line)) {
-      lines[displayOpen] = lines[displayOpen].replace('\\[', () => ');
-      lines[i] = line.replace('\\]', () => '$');
-      displayOpen = -1;
-    }
-  }
-  fence = undefined;
-  return lines.join('\n')
-    .split('\n')
-    .map(line => {
-      if (fence) {
-        if (closesFence(line, fence)) {
-          fence = undefined;
-        }
-        return line;
-      }
-      fence = openingFence(line);
-      return fence ? line : replaceOutsideCodeSpans(line);
-    })
-    .join('\n');
-};
-.repeat(2));
-      lines[i] = line.replace('\\]', () => ');
-      displayOpen = -1;
-    }
-  }
-  fence = undefined;
-  return lines.join('\n')
-    .split('\n')
-    .map(line => {
-      if (fence) {
-        if (closesFence(line, fence)) {
-          fence = undefined;
-        }
-        return line;
-      }
-      fence = openingFence(line);
-      return fence ? line : replaceOutsideCodeSpans(line);
-    })
-    .join('\n');
-};
-.repeat(2));
+      lines[displayOpen] = lines[displayOpen].replace('\\[', () => String.fromCharCode(36, 36));
+      lines[i] = line.replace('\\]', () => String.fromCharCode(36, 36));
       displayOpen = -1;
     }
   }

@@ -12,3 +12,5 @@ Committed, not independently tested in this handoff:
 - b8c1872, 83e08d7, 5ee7384: memory index, dispute review, migration tests.
 
 D06–D15: incomplete per prior handoff; exact individual definitions not yet recovered. Do not invent identifiers or mark complete without evidence. Record commit, test result and remaining limitations for each patch.
+
+2026-11-26: 2c4e40f adoption/416 hardening; 208e377 restores clean EOF rejection to preserve upstream tests. 47a899a exact HTP selection and wildcard availability fix; regression test added. CI not verified.

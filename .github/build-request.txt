@@ -19,3 +19,5 @@ Verify v0.2.0 upstream UI restoration and expanded regression gates
 Verify clean EOF contract correction and exact Hexagon selection regression (646966b); internal candidate only.
 
 2026-11-26: User explicitly authorized frozen v0.2.0 release candidate build; run all existing gates, no feature changes.
+
+2026-11-27: Authorized verification build after Robolectric runtime dependency correction c857723.

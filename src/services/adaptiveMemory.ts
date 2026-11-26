@@ -66,7 +66,7 @@ function keywords(text: string): Set<string> {
 }
 export function retrieveMemories(entries: MemoryEntry[], query: string, charBudget = 1200): MemoryEntry[] {
   const words = keywords(query);
-  const ranked = entries.map(entry => {
+  const ranked = entries.filter(entry => !entry.evidence || ['user_statement', 'user_correction', 'user_confirmed_success'].includes(entry.evidence.kind)).map(entry => {
     const terms = keywords(entry.text);
     const overlap = [...terms].filter(w => words.has(w)).length;
     return {entry, score: overlap / Math.sqrt(Math.max(1, terms.size)) * confidence({key: entry.id, claim: entry.text, disputed: false, evidence: [entry.evidence ?? {kind: 'user_statement', text: entry.text, recordedAt: entry.createdAt}]})};
@@ -89,7 +89,7 @@ export function updateMemory(id: string, text: string): Promise<void> {
     if (!clean) throw new Error('Memory cannot be empty');
     const entries = await readEntries();
     if (!entries.some(e => e.id === id)) throw new Error('Memory not found');
-    await AsyncStorage.setItem(KEY, serializeEntries(entries.map(e => e.id === id ? {...e, text: clean} : e)));
+    await AsyncStorage.setItem(KEY, serializeEntries(entries.map(e => e.id === id ? {...e, text: clean, evidence: undefined} : e)));
   });
 }
 
@@ -136,7 +136,7 @@ export function learnUserClaim(input: string): Promise<void> {
     const claim = extractUserClaim(input);
     if (!claim) return;
     const entries = await readEntries();
-    const previous = entries.find(e => extractUserClaim(e.text)?.key === claim.key);
+    const previous = entries.find(e => extractUserClaim(e.text)?.key === claim.key && e.evidence?.kind !== 'model_candidate');
     if (previous?.text.toLowerCase() === claim.text.toLowerCase()) return;
     const next = entries.filter(e => extractUserClaim(e.text)?.key !== claim.key);
     next.push({id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2), text: claim.text, source: 'user', createdAt: Date.now()});
@@ -158,8 +158,11 @@ export function learnFeedback(input: string): Promise<void> {
     const text = normalizeMemory(evidence.text);
     const entries = await readEntries();
     if (entries.some(e => e.text.toLowerCase() === text.toLowerCase() && e.evidence?.kind === evidence.kind)) return;
-    entries.push({id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2), text, source: 'user', createdAt: Date.now(), evidence});
-    await AsyncStorage.setItem(KEY, serializeEntries(entries));
+    // Only replace a contradiction when a supported stable preference key matches.
+    const claim = extractUserClaim(text);
+    const retained = evidence.kind === 'user_correction' && claim ? entries.filter(e => extractUserClaim(e.text)?.key !== claim.key) : entries;
+    retained.push({id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2), text, source: 'user', createdAt: Date.now(), evidence});
+    await AsyncStorage.setItem(KEY, serializeEntries(retained));
   });
 }
 

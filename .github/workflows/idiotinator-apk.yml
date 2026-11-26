@@ -152,6 +152,47 @@ jobs:
         run: |
           set -euo pipefail
           bash gradlew :llama.rn:assembleRelease --stacktrace --build-cache --console=plain -PrnllamaBuildFromSource=true -PreactNativeArchitectures="$ORG_GRADLE_PROJECT_reactNativeArchitectures"
+      - name: Package versioned native engine
+        id: engine
+        run: |
+          set -euo pipefail
+          mkdir -p native-engine
+          mapfile -t aars < <(find node_modules/llama.rn/android/build/outputs/aar -maxdepth 1 -name '*release.aar')
+          test "${#aars[@]}" -eq 1
+          cp "${aars[0]}" native-engine/engine.aar
+          python3 - <<'PY'
+          import hashlib, json, pathlib, zipfile, os
+          root = pathlib.Path('native-engine')
+          manifest = json.loads(pathlib.Path('scripts/android-payload-manifest.json').read_text())
+          with zipfile.ZipFile(root/'engine.aar') as aar:
+              names = set(aar.namelist())
+              for abi in manifest['abis']:
+                  for lib in abi['requiredLibs']:
+                      assert f"jni/{abi['abi']}/{lib}" in names, (abi['abi'], lib)
+          for asset in manifest['abis'][0]['requiredAssets']:
+              name = pathlib.Path(asset).name
+              source = pathlib.Path('node_modules/llama.rn/bin/arm64-v8a')/name
+              assert source.is_file(), source
+              (root/name).write_bytes(source.read_bytes())
+          inputs = [pathlib.Path(p) for p in ['yarn.lock','package.json','android/build.gradle','android/gradle.properties','android/gradle/wrapper/gradle-wrapper.properties','.github/actions/setup-hexagon-sdk/action.yml','.github/workflows/idiotinator-apk.yml','scripts/android-payload-manifest.json']]
+          inputs += sorted(pathlib.Path('patches').glob('llama.rn*'))
+          fingerprint = hashlib.sha256()
+          for p in inputs:
+              fingerprint.update(str(p).encode()+b'\0'+p.read_bytes()+b'\0')
+          fingerprint.update(os.environ['ORG_GRADLE_PROJECT_reactNativeArchitectures'].encode())
+          version = fingerprint.hexdigest()
+          metadata = {'schema':1,'fingerprint':version,'source_commit':os.environ['GITHUB_SHA'],'architectures':['arm64-v8a','x86_64'],'files':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(root.iterdir()) if p.is_file()}}
+          (root/'manifest.json').write_text(json.dumps(metadata,indent=2)+'\n')
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f:
+              f.write('version='+version+'\n')
+          PY
+      - name: Upload versioned native engine
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-engine-${{ steps.engine.outputs.version }}
+          path: native-engine/
+          if-no-files-found: error
+          retention-days: 90
       - name: Build Android Release
         working-directory: android
         run: bash gradlew assembleProdRelease --stacktrace --build-cache --console=plain -PrnllamaBuildFromSource=true -PreactNativeArchitectures="$ORG_GRADLE_PROJECT_reactNativeArchitectures"

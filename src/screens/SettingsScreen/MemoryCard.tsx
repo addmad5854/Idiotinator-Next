@@ -1,5 +1,5 @@
 import {confidence} from '../../services/learningEvidence';
-import React, {useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {Alert, Share, View} from 'react-native';
 import {Button, Card, Switch, Text, TextInput} from 'react-native-paper';
 import {listMemoryPage, memoryEnabled, setMemoryEnabled, updateMemory, deleteMemory, exportMemories, restoreMemories, autoLearningEnabled, setAutoLearningEnabled, type MemoryEntry} from '../../services/adaptiveMemory';
@@ -16,14 +16,14 @@ export function MemoryCard() {
   const [ready, setReady] = useState(false);
   const [total,setTotal]=useState(0);
   const [page, setPage] = useState(0);
-  async function refresh() {
+  const refresh = useCallback(async () => {
     const result=await listMemoryPage(query,page);
     setEntries(result.entries);setTotal(result.total);
     setEnabled(await memoryEnabled());
     setAuto(await autoLearningEnabled());
     setReady(true);
-  }
-  useEffect(() => {refresh().catch(() => Alert.alert('Memory unavailable', 'Could not read local memory.'));}, [query,page]);
+  }, [query, page]);
+  useEffect(() => {refresh().catch(() => Alert.alert('Memory unavailable', 'Could not read local memory.'));}, [refresh]);
   async function run(action: () => Promise<unknown>) {
     setBusy(true);
     try {await action(); await refresh();}

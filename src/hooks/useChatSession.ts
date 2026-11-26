@@ -4,6 +4,7 @@ import {AccessibilityInfo} from 'react-native';
 import {toJS} from 'mobx';
 import type {JinjaFormattedChatResult} from 'llama.rn';
 
+import {chooseReasoning, reasoningInstruction, type ReasoningLevel} from '../utils/idiotinatorReasoning';
 import {randId} from '../utils';
 import {L10nContext} from '../utils';
 import {
@@ -84,6 +85,7 @@ const prepareCompletion = async ({
   l10n,
   currentMessages,
   spoken,
+  reasoningLevel,
 }: {
   imageUris: string[];
   message: MessageType.PartialText;
@@ -95,6 +97,7 @@ const prepareCompletion = async ({
   l10n: any;
   currentMessages: MessageType.Any[];
   spoken: boolean;
+  reasoningLevel?: ReasoningLevel;
 }) => {
   const sessionCompletionSettings =
     await chatSessionStore.getCurrentCompletionSettings();
@@ -175,6 +178,7 @@ const prepareCompletion = async ({
 
   const completionParamsWithAppProps = {
     ...sessionCompletionSettings,
+    ...(reasoningLevel ? {enable_thinking: reasoningLevel === 'deep', reasoning: {enabled: reasoningLevel === 'deep'}} : {}),
     // A spoken reply must start talking at once, not after a reasoning pass.
     ...(spoken ? {enable_thinking: false, reasoning: {enabled: false}} : {}),
     messages,
@@ -815,7 +819,13 @@ export const useChatSession = (
       pal,
       model: modelStore.activeModel,
     });
+    if (modelStore.context) systemMessages.unshift({role: 'system', content: 'You are Idiotinator, a personal AI assistant running inference locally on this Android device. Your underlying language model is replaceable. Distinguish your assistant identity from the model developer. Do not claim remote processing or internet access unless actually provided. Default personality: intelligent, friendly, concise, dry humour when appropriate. Respect the selected assistant style.'});
 
+    const settings = await chatSessionStore.getCurrentCompletionSettings();
+    const reasoningLevel = !opts.spoken && !hasImages && modelStore.context && settings.enable_thinking !== false
+      ? await chooseReasoning(engine, message.text, currentMessages.slice(-4).map(m => m.type === 'text' ? m.text : '').join('\n'), lease.signal)
+      : undefined;
+    if (reasoningLevel) systemMessages.push({role: 'system', content: reasoningInstruction(reasoningLevel)});
     const {cleanCompletionParams, messageInfo} = await prepareCompletion({
       imageUris: imageUris || [],
       message,
@@ -827,6 +837,7 @@ export const useChatSession = (
       l10n,
       currentMessages,
       spoken: !!opts.spoken,
+      reasoningLevel,
     });
 
     currentMessageInfo.current = messageInfo;

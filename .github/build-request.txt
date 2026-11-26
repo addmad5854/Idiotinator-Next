@@ -9,3 +9,5 @@ Authorized v0.1.11 rebuild after verified delimiter source repair
 Verify adaptive knowledge extraction and confidence retrieval
 
 Verify v0.2.0 memory corrective patches and SQLite migration
+
+Internal v0.2.0 verification: indexed memory, semantic disputes and migration recovery

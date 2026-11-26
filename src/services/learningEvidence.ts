@@ -1,3 +1,4 @@
+import {isSensitiveMemory} from './memoryPrivacy';
 export type EvidenceKind = 'user_statement' | 'user_correction' | 'user_confirmed_success' | 'web_source' | 'model_candidate';
 export type LearningEvidence = {kind: EvidenceKind; text: string; recordedAt: number; url?: string};
 export type LearningRecord = {key: string; claim: string; evidence: LearningEvidence[]; disputed: boolean};
@@ -12,7 +13,7 @@ export function confidence(record: LearningRecord): number {
 }
 export function extractFeedback(input: string): LearningEvidence | null {
   const text = input.trim();
-  if (text.length > 1000 || text.length < 12) return null;
+  if (isSensitiveMemory(text) || text.length > 1000 || text.length < 12) return null;
   const correction = /^(?:correction|the correct answer is|actually)\s*[:,]?\s+(.+)/i.exec(text);
   const success = /^(?:this worked|the solution that worked was|successful approach)\s*[:,]\s*(.+)/i.exec(text);
   if (!correction && !success) return null;

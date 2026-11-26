@@ -139,7 +139,7 @@ export async function getDeviceOptions(): Promise<DeviceOption[]> {
   options.push({
     id: 'cpu',
     label: 'CPU',
-    description: 'CPU only (Slowest, but works with all models)',
+    description: 'CPU only (conservative compatibility baseline; speed varies by model)',
     devices: ['CPU'],
     n_gpu_layers: 0,
     default_flash_attn_type: 'off',
@@ -218,7 +218,7 @@ export function detectQuantizationType(filename: string): string | null {
   ];
 
   for (const pattern of quantPatterns) {
-    if (normalized.includes(pattern)) {
+    if (new RegExp(`(?:^|[^a-z0-9])${pattern}(?:$|[^a-z0-9])`).test(normalized)) {
       return pattern;
     }
   }
@@ -269,8 +269,8 @@ export function validateModelQuantizationForDevice(
           recommendation:
             `Recommendations:\n` +
             `• Use a Q4_0 or Q6_K version of this model\n` +
-            `• Switch to Hexagon NPU (if available)\n` +
-            `• Use CPU only (slower but works)`,
+            `• Test Hexagon NPU (if available; compatibility unverified)\n` +
+            `• Try CPU only (subject to model support and available memory)`,
         };
       }
     }

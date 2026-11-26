@@ -148,6 +148,10 @@ class HardwareInfoModule(reactContext: ReactApplicationContext) :
     try {
       val cpuInfo = Arguments.createMap()
       cpuInfo.putInt("cores", Runtime.getRuntime().availableProcessors())
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        val power = reactApplicationContext.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+        power?.let { cpuInfo.putInt("thermalStatus", it.currentThermalStatus) }
+      }
 
       val processors = Arguments.createArray()
       val features = mutableSetOf<String>()

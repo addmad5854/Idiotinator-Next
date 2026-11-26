@@ -19,6 +19,7 @@ export interface CPUInfo {
   socModel?: string;
   hardware?: string;
   maxFreqMhz?: number;
+  thermalStatus?: number;
 }
 
 export interface GPUInfo {

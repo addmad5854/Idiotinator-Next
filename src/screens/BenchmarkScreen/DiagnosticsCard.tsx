@@ -7,6 +7,7 @@ import {Share, View} from 'react-native';
 import {Button, Text} from 'react-native-paper';
 import Clipboard from '@react-native-clipboard/clipboard';
 import DeviceInfo from 'react-native-device-info';
+import NativeHardwareInfo from '../../specs/NativeHardwareInfo';
 import {getBackendDevicesInfo} from 'llama.rn';
 import {getCpuInfo, getGpuInfo, checkGpuSupport} from '../../utils/deviceCapabilities';
 import {chooseReasoning, finalAnswer} from '../../utils/idiotinatorReasoning';
@@ -69,7 +70,7 @@ export const DiagnosticsCard = ({busy, onRunning}: {busy: boolean; onRunning: (v
           actualOffloadVerified: false,
         };
       });
-      await probe('memory_bytes', async () => ({total: await DeviceInfo.getTotalMemory(), appUsed: await DeviceInfo.getUsedMemory()}));
+      await probe('memory_bytes', async () => ({total: await DeviceInfo.getTotalMemory(), appUsed: await DeviceInfo.getUsedMemory(), available: await NativeHardwareInfo.getAvailableMemory()}));
       await probe('storage_bytes', async () => ({free: await DeviceInfo.getFreeDiskStorage()}));
       await probe('loaded_context', async () => {
         const c = modelStore.context;
@@ -103,7 +104,11 @@ export const DiagnosticsCard = ({busy, onRunning}: {busy: boolean; onRunning: (v
           } finally {clearTimeout(timeout); lease.signal.removeEventListener('abort', stop); active.current = null; lease.end();}
         } else {for (const name of ['generation', 'instruction_following', 'reasoning']) checks.push({name, status: 'unavailable'});}
       } else {for (const name of ['generation', 'instruction_following', 'reasoning']) checks.push({name, status: cancelled.current ? 'cancelled' : full ? 'unavailable' : 'not_tested'});}
-      for (const name of ['actual_gpu_offload','math_rendering','offline_network_isolation','voice','thermal','native_logs']) {
+      await probe('thermal', async () => {
+        const cpu = await getCpuInfo();
+        return typeof cpu?.thermalStatus === 'number' ? {androidThermalStatus: cpu.thermalStatus, match: cpu.thermalStatus < 3} : null;
+      });
+      for (const name of ['actual_gpu_offload','math_rendering','offline_network_isolation','voice','native_logs']) {
         checks.push({name, status: 'not_tested'});
       }
       setReport(JSON.stringify({schema: 1, createdAt: new Date().toISOString(), mode: full ? 'local_inference' : 'read_only', note: 'Inventory pass means data collected; functional pass means expected output matched. Actual GPU offloading is not verified.', checks}, null, 2));

@@ -43,6 +43,7 @@ export interface CpuInfo {
   hasDotProd?: boolean;
   hasSve?: boolean;
   hasI8mm?: boolean;
+  thermalStatus?: number;
 }
 
 /**
@@ -169,6 +170,7 @@ export async function getCpuInfo(): Promise<CpuInfo | null> {
       hasDotProd: info.hasDotProd,
       hasSve: info.hasSve,
       hasI8mm: info.hasI8mm,
+      thermalStatus: info.thermalStatus,
     };
   } catch (error) {
     console.warn('Failed to get CPU info:', error);

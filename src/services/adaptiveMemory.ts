@@ -106,7 +106,7 @@ export function restoreMemories(raw: string): Promise<void> {
       ids.add(e.id);
       return {id: e.id, text: normalizeMemory(e.text), source: 'user', createdAt: e.createdAt};
     });
-    await AsyncStorage.setItem(KEY, JSON.stringify(entries));
+    await AsyncStorage.setItem(KEY, serializeEntries(entries));
   });
 }
 
@@ -116,4 +116,35 @@ export async function memoryEnabled(): Promise<boolean> {
 }
 export async function setMemoryEnabled(enabled: boolean): Promise<void> {
   await AsyncStorage.setItem(ENABLE_KEY, String(enabled));
+}
+
+type LearnedClaim = {key: string; text: string};
+export function extractUserClaim(input: string): LearnedClaim | null {
+  const text = input.trim().replace(/^(?:actually|correction)\s*[:,]?\s*/i, '');
+  if (text.length > 240 || /[?\n]|(?:password|secret|token|pin code|credit card)/i.test(text)) return null;
+  const match = /^(?:my (preferred language|preferred units|preferred editor|preferred programming language|preferred response style|preferred name) is|i (prefer)) ([^.!?]+)[.!]?$/i.exec(text);
+  if (!match) return null;
+  const value = match[3].trim();
+  if (!value || /(?:\b(?:if|unless|sometimes|might|would|maybe|not)\b)/i.test(value)) return null;
+  return {key: match[1]?.toLowerCase() || 'general preference:' + value.toLowerCase(), text: match[1] ? 'My ' + match[1].toLowerCase() + ' is ' + value : 'I prefer ' + value};
+}
+
+export function learnUserClaim(input: string): Promise<void> {
+  return mutate(async () => {
+    if (!(await memoryEnabled()) || (await AsyncStorage.getItem(KEY + '/auto')) !== 'true') return;
+    const claim = extractUserClaim(input);
+    if (!claim) return;
+    const entries = await readEntries();
+    const previous = entries.find(e => extractUserClaim(e.text)?.key === claim.key);
+    if (previous?.text.toLowerCase() === claim.text.toLowerCase()) return;
+    const next = entries.filter(e => extractUserClaim(e.text)?.key !== claim.key);
+    next.push({id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2), text: claim.text, source: 'user', createdAt: Date.now()});
+    await AsyncStorage.setItem(KEY, serializeEntries(next));
+  });
+}
+export async function autoLearningEnabled(): Promise<boolean> {
+  return (await AsyncStorage.getItem(KEY + '/auto')) === 'true';
+}
+export async function setAutoLearningEnabled(enabled: boolean): Promise<void> {
+  await AsyncStorage.setItem(KEY + '/auto', String(enabled));
 }

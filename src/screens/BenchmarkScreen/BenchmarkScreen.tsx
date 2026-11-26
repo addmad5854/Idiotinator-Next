@@ -1,3 +1,5 @@
+import {initLlama} from 'llama.rn';
+import {getCpuCoreCount, getThermalStatus} from '../../utils/deviceCapabilities';
 import {DiagnosticsCard} from './DiagnosticsCard';
 import {View, ScrollView} from 'react-native';
 import React, {useState, useCallback, useContext, useEffect} from 'react';
@@ -68,6 +70,8 @@ const BENCHMARK_PARAMS_METADATA = {
 export const BenchmarkScreen: React.FC = observer(() => {
   const [memory, setMemory] = useState<{used: number; total: number} | null>(null);
   useEffect(() => { let alive = true; const refresh = async () => { try { const [used,total] = await Promise.all([RNDeviceInfo.getUsedMemory(),RNDeviceInfo.getTotalMemory()]); if (alive) setMemory({used,total}); } catch {} }; refresh(); const timer = setInterval(refresh, 3000); return () => { alive = false; clearInterval(timer); }; }, []);
+  const [tuning, setTuning] = useState(false);
+  const [tuningReport, setTuningReport] = useState('');
   const [diagnosticRunning, setDiagnosticRunning] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [runError, setRunError] = useState(false);
@@ -104,7 +108,7 @@ export const BenchmarkScreen: React.FC = observer(() => {
   };
 
   const handleModelSelect = async (model: Model) => {
-    if (diagnosticRunning || isRunning || modelStore.isGenerationBusy) return;
+    if (tuning || diagnosticRunning || isRunning || modelStore.isGenerationBusy) return;
     setShowModelMenu(false);
     if (model.id !== modelStore.activeModelId) {
       try {
@@ -145,7 +149,7 @@ export const BenchmarkScreen: React.FC = observer(() => {
   };
 
   const runBenchmark = async () => {
-    if (diagnosticRunning || isRunning || !modelStore.context || !modelStore.activeModel) {
+    if (tuning || diagnosticRunning || isRunning || !modelStore.context || !modelStore.activeModel) {
       return;
     }
 
@@ -215,6 +219,50 @@ export const BenchmarkScreen: React.FC = observer(() => {
       lease.end();
       clearInterval(memoryCheckInterval);
       setIsRunning(false);
+    }
+  };
+
+  const tuneThreads = async () => {
+    const model = modelStore.activeModel;
+    const settings = modelStore.activeContextSettings;
+    if (!model || !settings || !modelStore.context || modelStore.isGenerationBusy || modelStore.benchmarkActive || isRunning || diagnosticRunning || tuning) return;
+    setTuning(true);
+    setTuningReport('Testing CPU threads; the active model will be temporarily unloaded.');
+    const rows: {threads: number; speed: number}[] = [];
+    let entered = false;
+    let safeToRestore = true;
+    try {
+      const path = await modelStore.getModelFullPath(model);
+      const cores = await getCpuCoreCount();
+      const candidates = [...new Set([Math.min(4, cores), Math.min(6, cores), Math.min(8, cores)])].filter(n => n > 0);
+      entered = true;
+      await modelStore.enterBenchmarkMode();
+      for (const threads of candidates) {
+        const heat = await getThermalStatus();
+        if (heat !== undefined && heat >= 2) throw new Error('Device too warm; retry after cooling.');
+        const ctx = await initLlama({...settings, model: path, devices: ['CPU'], n_gpu_layers: 0, n_threads: threads});
+        try {
+          const result = await ctx.bench(Math.min(128, settings.n_ubatch), 32, 1, 2);
+          if (Number.isFinite(result.speedTg) && result.speedTg > 0) rows.push({threads, speed: result.speedTg});
+        } finally {
+          try { await ctx.release(); } catch (error) { safeToRestore = false; throw error; }
+        }
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+      if (rows.length !== candidates.length) throw new Error('Incomplete benchmark');
+      rows.sort((a,b) => b.speed - a.speed);
+      modelStore.setNThreads(rows[0].threads);
+      setTuningReport(rows.map(row => row.threads + ' threads: ' + row.speed.toFixed(2) + ' t/s').join(' | ') + '. Selected ' + rows[0].threads + ' threads.');
+    } catch {
+      setTuningReport('CPU tuning incomplete; no new recommendation applied.');
+    } finally {
+      if (entered) {
+        modelStore.exitBenchmarkMode();
+        if (safeToRestore) {
+          try { await modelStore.initContext(model); } catch { setTuningReport(prev => prev + ' Model reload failed; select it again.'); }
+        }
+      }
+      setTuning(false);
     }
   };
 
@@ -558,7 +606,9 @@ export const BenchmarkScreen: React.FC = observer(() => {
               <Text>Active model: {modelStore.activeModel?.name || 'None'}</Text>
               <Text>Context: {modelStore.context ? 'Loaded' : 'Not loaded'}</Text>
             </View>
-            <DiagnosticsCard busy={isRunning || !!modelStore.loadingModel || modelStore.isGenerationBusy} onRunning={setDiagnosticRunning} />
+            <Button mode="outlined" disabled={tuning || isRunning || diagnosticRunning || !modelStore.context || modelStore.isGenerationBusy} loading={tuning} onPress={tuneThreads}>Optimize CPU threads</Button>
+            {tuningReport ? <Text>{tuningReport}</Text> : null}
+            <DiagnosticsCard busy={tuning || isRunning || !!modelStore.loadingModel || modelStore.isGenerationBusy} onRunning={setDiagnosticRunning} />
             <DeviceInfoCard onDeviceInfo={handleDeviceInfo} />
             {renderModelSelector()}
 

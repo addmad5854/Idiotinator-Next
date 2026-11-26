@@ -9,7 +9,7 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import DeviceInfo from 'react-native-device-info';
 import {getBackendDevicesInfo} from 'llama.rn';
 import {getCpuInfo, getGpuInfo, checkGpuSupport} from '../../utils/deviceCapabilities';
-import {chooseReasoning} from '../../utils/idiotinatorReasoning';
+import {chooseReasoning, finalAnswer} from '../../utils/idiotinatorReasoning';
 import {detectQuantizationType} from '../../utils/deviceSelection';
 import {modelStore} from '../../store';
 import {LocalCompletionEngine} from '../../api/completionEngines';
@@ -74,12 +74,12 @@ export const DiagnosticsCard = ({busy, onRunning}: {busy: boolean; onRunning: (v
               const start = Date.now();
               let first: number | null = null;
               const result = await lease.engine.completion({messages: [{role: 'user', content: 'What is 17 plus 25? Reply with only the number.'}], n_predict: 32, temperature: 0, enable_thinking: false, chat_template_kwargs: {enable_thinking: false}}, token => {if (first === null && (token.token || token.content)) first = Date.now() - start;});
-              const answer = (result.content || result.text || '').trim();
+              const answer = finalAnswer(result.content || result.text || '');
               return {answer, expected: '42', match: /^42[.!]?$/.test(answer), elapsedMs: Date.now() - start, firstTokenMs: first, timings: result.timings, interrupted: result.interrupted};
             });
             await probe('instruction_following', async () => {
               const result = await lease.engine.completion({messages: [{role: 'user', content: 'Reply with only the word BLUE.'}], n_predict: 16, temperature: 0, enable_thinking: false, chat_template_kwargs: {enable_thinking: false}});
-              const answer = (result.content || result.text || '').trim();
+              const answer = finalAnswer(result.content || result.text || '');
               return {answer, expected: 'BLUE', match: /^BLUE[.!]?$/i.test(answer), interrupted: result.interrupted};
             });
             await probe('reasoning', async () => {const start = Date.now(); const level = await chooseReasoning(lease.engine, 'Prove that the square root of two is irrational.', '', lease.signal); return {level, expected: 'deep', match: level === 'deep', elapsedMs: Date.now() - start};});

@@ -2,6 +2,11 @@ import type {CompletionEngine} from './completionTypes';
 
 export type ReasoningLevel = 'instant' | 'standard' | 'deep';
 
+// Remove only complete leading thinking blocks, not unfinished reasoning.
+export function finalAnswer(text: string): string {
+  return text.trim().replace(/^(?:<think>[\s\S]*?<\/think>\s*)+/i, '').trim();
+}
+
 export async function chooseReasoning(
   engine: CompletionEngine,
   prompt: string,
@@ -10,6 +15,7 @@ export async function chooseReasoning(
 ): Promise<ReasoningLevel> {
   if (signal.aborted) return 'standard';
   if (/^(hi|hello|hey|thanks|thank you|good morning|good evening|how are you|hello,? how are you)[?!. ]*$/i.test(prompt.trim())) return 'instant';
+  if (/^\s*(?:prove|derive)\b/i.test(prompt)) return 'deep';
   try {
     const result = await engine.completion({
       messages: [
@@ -22,7 +28,7 @@ export async function chooseReasoning(
       chat_template_kwargs: {enable_thinking: false},
     });
     if (signal.aborted) return 'standard';
-    const label = (result.content || result.text || '').trim().toLowerCase();
+    const label = finalAnswer(result.content || result.text || '').toLowerCase();
     if (label === 'instant' || label === 'standard' || label === 'deep') return label;
   } catch {
     // A failed classification must not prevent normal chat.

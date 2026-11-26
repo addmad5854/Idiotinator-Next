@@ -1,7 +1,7 @@
 import {closesFence, Fence, openingFence} from './codeFence';
 
 const BREAK_TAG = /<br[ \t]*\/?>/gi;
-const normalizeText = (text: string) => text.replace(BREAK_TAG, ' ').replace(/\\\((.+?)\\\)/g, (_, math) => '$' + math + '$').replace(/\\\[(.+?)\\\]/g, (_, math) => '$$' + math + '$$');
+const normalizeText = (text: string) => text.replace(BREAK_TAG, ' ').replace(/(^|[^\\])((?:\\\\)*)\\\((.+?)\\\)/g, (_, prefix, escaped, math) => prefix + escaped + '$' + math + '$').replace(/(^|[^\\])((?:\\\\)*)\\\[(.+?)\\\]/g, (_, prefix, escaped, math) => prefix + escaped + '$$' + math + '$$');
 const endOfBacktickRun = (line: string, start: number): number => {
   let end = start;
   while (line[end] === '`') {
@@ -61,7 +61,27 @@ export const normalizeBreakTags = (text: string): string => {
     return text;
   }
   let fence: Fence | undefined;
-  return text
+  let displayOpen = -1;
+  const lines = text.split('\n');
+  // Convert standalone display delimiters only when a matching close exists
+  // outside fenced code. Leave unfinished streamed equations untouched.
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (fence) {
+      if (closesFence(line, fence)) fence = undefined;
+      continue;
+    }
+    fence = openingFence(line);
+    if (fence) {displayOpen = -1; continue;}
+    if (/^\s*\\\[\s*$/.test(line)) displayOpen = i;
+    else if (displayOpen >= 0 && /^\s*\\\]\s*$/.test(line)) {
+      lines[displayOpen] = lines[displayOpen].replace('\\[', () => '$');
+      lines[i] = line.replace('\\]', () => '$');
+      displayOpen = -1;
+    }
+  }
+  fence = undefined;
+  return lines.join('\n')
     .split('\n')
     .map(line => {
       if (fence) {

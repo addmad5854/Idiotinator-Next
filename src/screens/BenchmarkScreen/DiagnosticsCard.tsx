@@ -12,6 +12,7 @@ import {getCpuInfo, getGpuInfo, checkGpuSupport} from '../../utils/deviceCapabil
 import {chooseReasoning} from '../../utils/idiotinatorReasoning';
 import {detectQuantizationType} from '../../utils/deviceSelection';
 import {modelStore} from '../../store';
+import {LocalCompletionEngine} from '../../api/completionEngines';
 
 type Check = {name: string; status: 'pass' | 'fail' | 'unavailable' | 'not_tested' | 'cancelled'; data?: unknown};
 export const DiagnosticsCard = ({busy, onRunning}: {busy: boolean; onRunning: (value: boolean) => void}) => {
@@ -60,7 +61,10 @@ export const DiagnosticsCard = ({busy, onRunning}: {busy: boolean; onRunning: (v
       });
       if (full && modelStore.context && !cancelled.current) {
         const lease = modelStore.tryAcquireGeneration();
-        if (lease) {
+        if (lease && !(lease.engine instanceof LocalCompletionEngine)) {
+          lease.end();
+        }
+        if (lease && lease.engine instanceof LocalCompletionEngine) {
           active.current = lease;
           const stop = () => {void lease.engine.stopCompletion().catch(() => {});};
           lease.signal.addEventListener('abort', stop);
@@ -80,8 +84,8 @@ export const DiagnosticsCard = ({busy, onRunning}: {busy: boolean; onRunning: (v
             });
             await probe('reasoning', async () => {const start = Date.now(); const level = await chooseReasoning(lease.engine, 'Prove that the square root of two is irrational.', '', lease.signal); return {level, expected: 'deep', match: level === 'deep', elapsedMs: Date.now() - start};});
           } finally {clearTimeout(timeout); lease.signal.removeEventListener('abort', stop); active.current = null; lease.end();}
-        } else {checks.push({name: 'generation', status: 'unavailable'}, {name: 'reasoning', status: 'unavailable'});}
-      } else {checks.push({name: 'generation', status: 'not_tested'}, {name: 'reasoning', status: 'not_tested'});}
+        } else {for (const name of ['generation', 'instruction_following', 'reasoning']) checks.push({name, status: 'unavailable'});}
+      } else {for (const name of ['generation', 'instruction_following', 'reasoning']) checks.push({name, status: cancelled.current ? 'cancelled' : full ? 'unavailable' : 'not_tested'});}
       for (const name of ['actual_gpu_offload','math_rendering','offline_network_isolation','voice','thermal','native_logs']) {
         checks.push({name, status: 'not_tested'});
       }

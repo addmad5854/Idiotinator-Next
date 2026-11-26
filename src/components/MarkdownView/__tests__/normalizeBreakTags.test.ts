@@ -121,3 +121,18 @@ describe('normalizeBreakTags', () => {
     expect(normalizeBreakTags(text)).toBe(text);
   });
 });
+
+describe('math delimiters', () => {
+  it('converts inline and display equations', () => {
+    expect(normalizeBreakTags('\\(x+1\\)')).toBe('$x+1$');
+    expect(normalizeBreakTags('\\[\nx+1\n\\]')).toBe('$$\nx+1\n$$');
+  });
+  it('preserves incomplete and escaped delimiters', () => {
+    expect(normalizeBreakTags('\\[\nx')).toBe('\\[\nx');
+    expect(normalizeBreakTags('\\\\(x\\)')).toBe('\\\\(x\\)');
+  });
+  it('preserves fenced equations and currency', () => {
+    const source = '~~~\n\\[\nx\n\\]\n~~~\n$5';
+    expect(normalizeBreakTags(source)).toBe(source);
+  });
+});

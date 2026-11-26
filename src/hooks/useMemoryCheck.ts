@@ -1,5 +1,6 @@
 import React, {useEffect, useState} from 'react';
 import DeviceInfo from 'react-native-device-info';
+import NativeHardwareInfo from '../specs/NativeHardwareInfo';
 import {L10nContext, formatBytes} from '../utils';
 import {t} from '../locales';
 import {Model} from '../utils/types';
@@ -74,6 +75,18 @@ export const hasEnoughMemory = async (
     draftModel,
   );
 
+  // When no model is loaded, current OS headroom is more relevant than
+  // historical successful loads. Do not double-count a context about to be released.
+  if (!modelStore.context) {
+    try {
+      const available = await NativeHardwareInfo.getAvailableMemory();
+      if (Number.isFinite(available) && available >= 0) {
+        ceiling = Math.min(ceiling, available);
+      }
+    } catch {
+      // Retain the conservative calibrated estimate if the OS probe fails.
+    }
+  }
   return memoryRequirement <= ceiling;
 };
 

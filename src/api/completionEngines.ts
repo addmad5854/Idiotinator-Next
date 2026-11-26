@@ -37,8 +37,8 @@ export class LocalCompletionEngine implements CompletionEngine {
       try {
         const status = await thermal();
         if (!finished && status !== undefined && status >= 3) {
-          stoppedForHeat = true;
           await this.context.stopCompletion();
+          stoppedForHeat = true;
         }
       } catch {
         // Monitoring failure must not crash inference.

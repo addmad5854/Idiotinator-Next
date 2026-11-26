@@ -32,3 +32,10 @@ test('explicit proof requests bypass classifier', async () => {
   expect(await chooseReasoning(engine, 'Prove that the square root of two is irrational.', '', new AbortController().signal)).toBe('deep');
   expect(completion).not.toHaveBeenCalled();
 });
+
+test('ambiguous request uses model classifier rather than proof shortcut', async () => {
+  const completion = jest.fn().mockResolvedValue({content: 'deep'});
+  const engine: CompletionEngine = {completion, stopCompletion: jest.fn()};
+  expect(await chooseReasoning(engine, 'Explain this difficult problem', 'context', new AbortController().signal)).toBe('deep');
+  expect(completion).toHaveBeenCalledTimes(1);
+});

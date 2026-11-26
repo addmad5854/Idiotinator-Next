@@ -1,7 +1,7 @@
 import {Platform} from 'react-native';
 import {getBackendDevicesInfo} from 'llama.rn';
 
-import {getDeviceOptions, resolveDeviceSelection, isHexagonAvailable} from '../deviceSelection';
+import {getDeviceOptions, resolveDeviceSelection, isHexagonAvailable, validateModelQuantizationForDevice} from '../deviceSelection';
 
 const discover = getBackendDevicesInfo as jest.Mock;
 const device = (deviceName: string) => ({
@@ -132,5 +132,20 @@ test('OpenCL and HTP remain distinct even when both report GPU type',async()=>{c
     expect(await resolveDeviceSelection({devices: ['HTP3'], n_gpu_layers: 23})).toEqual({devices: ['HTP3'], n_gpu_layers: 23});
     discover.mockResolvedValue([device('HTP*')]);
     expect(await isHexagonAvailable()).toBe(false);
+  } finally { Platform.OS = os; }
+});
+
+ test('reports unverified accelerator quantization without claiming compatibility', async () => {
+  const os = Platform.OS;
+  Platform.OS = 'android';
+  try {
+    discover.mockResolvedValue([device('HTP0'), {...device('GPUOpenCL'), type: 'gpu', backend: 'OpenCL'}]);
+    const options = await getDeviceOptions();
+    const gpu = options.find(o => o.id === 'gpu')!;
+    const htp = options.find(o => o.id === 'hexagon')!;
+    expect(validateModelQuantizationForDevice('unknown.gguf', gpu).warning).toContain('unverified');
+    expect(validateModelQuantizationForDevice('model-Q4_K_M.gguf', htp).warning).toContain('unverified');
+    expect(validateModelQuantizationForDevice('model-Q4_K_M.gguf', gpu).valid).toBe(false);
+    expect(validateModelQuantizationForDevice('model-Q4_0.gguf', gpu).valid).toBe(true);
   } finally { Platform.OS = os; }
 });

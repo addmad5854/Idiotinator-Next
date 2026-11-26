@@ -52,6 +52,23 @@ export const DiagnosticsCard = ({busy, onRunning}: {busy: boolean; onRunning: (v
         const devices = await getBackendDevicesInfo();
         return {devices: (devices || []).map(d => ({name: d.deviceName, type: d.type})), acceleratorDetected: !!devices?.some(d => d.type === 'gpu' || d.deviceName?.startsWith('HTP'))};
       });
+      await probe('accelerator_readiness', async () => {
+        const eligibility = await checkGpuSupport();
+        const devices = await getBackendDevicesInfo();
+        const gpuDetected = !!devices?.some(d => d.type === 'gpu' && !!d.deviceName);
+        const npuDetected = !!devices?.some(d => d.deviceName?.startsWith('HTP'));
+        const settings = modelStore.activeContextSettings;
+        return {
+          hardwareEligible: eligibility.isSupported,
+          gpuDetected,
+          npuDetected,
+          match: !eligibility.isSupported || gpuDetected,
+          diagnosis: gpuDetected ? 'gpu_enumerated_offload_unverified' : eligibility.isSupported ? 'eligible_gpu_missing_from_native_backend' : 'gpu_not_eligible',
+          requestedGpuLayers: settings?.n_gpu_layers ?? null,
+          requestedDevices: settings?.devices ?? null,
+          actualOffloadVerified: false,
+        };
+      });
       await probe('memory_bytes', async () => ({total: await DeviceInfo.getTotalMemory(), appUsed: await DeviceInfo.getUsedMemory()}));
       await probe('storage_bytes', async () => ({free: await DeviceInfo.getFreeDiskStorage()}));
       await probe('loaded_context', async () => {

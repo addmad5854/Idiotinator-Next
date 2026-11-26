@@ -7,7 +7,7 @@ import 'react-native-get-random-values';
 import {observer} from 'mobx-react-lite';
 import * as RNFS from '@dr.pogodin/react-native-fs';
 import {pick, types} from '@react-native-documents/picker';
-import {Portal, Snackbar} from 'react-native-paper';
+import {Portal, Snackbar, Text, Button} from 'react-native-paper';
 
 import {useTheme} from '../../hooks';
 
@@ -276,7 +276,7 @@ export const ModelsScreen: React.FC = observer(() => {
   // so we use computed instead for deep comparison
   // (model state changes not-downloaded -> downloaded)
   const filteredAndSortedModels = computed(() => {
-    let result = models;
+    let result = [...models];
     if (filters.includes('downloaded')) {
       result = result.filter(model => model.isDownloaded);
     }
@@ -294,7 +294,7 @@ export const ModelsScreen: React.FC = observer(() => {
     if (filters.includes('hf')) {
       result = result.filter(model => model.origin === ModelOrigin.HF);
     }
-    return result;
+    return result.length ? result : [...models];
   }).get();
 
   const getGroupDisplayName = (key: string) => {
@@ -341,13 +341,13 @@ export const ModelsScreen: React.FC = observer(() => {
       uiStore.pageStates.modelsScreen.expandedGroups;
     const updatedExpandedGroups = {
       ...currentExpandedGroups,
-      [type]: !currentExpandedGroups[type],
+      [type]: !(currentExpandedGroups[type] ?? true),
     };
     uiStore.setValue('modelsScreen', 'expandedGroups', updatedExpandedGroups);
   };
 
   const renderGroupHeader = ({item: group}) => {
-    const isExpanded = expandedGroups[group.type];
+    const isExpanded = expandedGroups[group.type] ?? true;
     const displayName = filters.includes('grouped')
       ? group.type
       : getGroupDisplayName(group.type);
@@ -403,6 +403,8 @@ export const ModelsScreen: React.FC = observer(() => {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.listContainer}
         data={flatListModels}
+        ListHeaderComponent={<View style={{padding: 16, gap: 8}}><Text variant="headlineMedium">Model library</Text><Text>{models.filter(m => m.isDownloaded).length} downloaded · {models.length} available</Text><Button mode="outlined" onPress={() => setHFSearchVisible(true)}>Find models</Button><Button onPress={handleAddLocalModel}>Import GGUF</Button></View>}
+        ListEmptyComponent={<View style={{padding: 24}}><Text>No models visible. Refresh or import a GGUF file.</Text><Button onPress={onRefresh}>Refresh library</Button></View>}
         keyExtractor={item => item.type}
         extraData={activeModelId}
         renderItem={renderGroupHeader}

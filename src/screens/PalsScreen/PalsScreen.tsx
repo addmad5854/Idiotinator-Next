@@ -16,8 +16,20 @@ export const PalsScreen: React.FC = observer(() => {
   return (
     <View style={{flex: 1, backgroundColor: theme.colors.background}}>
       <ScrollView contentContainerStyle={{padding: 20, gap: 14}}>
-        <Text variant="headlineMedium">Your AI workspace</Text>
-        <Text variant="bodyMedium">Create assistants with their own instructions and models. No account required.</Text>
+        <Text variant="headlineMedium">Intelligence studio</Text>
+        <Text variant="bodyMedium">Configure local personalities and specialist assistants.</Text>
+        <View style={{padding: 18, borderRadius: 20, backgroundColor: theme.colors.surface, gap: 8}}>
+          <Text variant="titleLarge">Personality presets</Text>
+          <Text>Choose a starting personality, then edit its instructions and save it.</Text>
+          {[
+            ['Idiotinator', 'Curious, analytical, direct, with occasional dry humour. Admit uncertainty.'],
+            ['Engineer', 'Practical, precise, check units and assumptions.'],
+            ['Scientist', 'Skeptical, evidence-driven, distinguish facts from hypotheses.'],
+            ['Tutor', 'Patient, explain step by step and ask guiding questions.'],
+            ['Developer', 'Write maintainable code and explain tests and limitations.'],
+            ['Dry wit', 'Concise, witty, mildly sarcastic, serious when appropriate.'],
+          ].map(([name, prompt]) => <Button key={name} mode="outlined" onPress={() => setCurrent({...createNewAssistantPal(), name, description: prompt, systemPrompt: 'You are ' + name + '. ' + prompt, originalSystemPrompt: 'You are ' + name + '. ' + prompt})}>{name}</Button>)}
+        </View>
         <Button mode="contained" icon="plus" onPress={() => setCurrent(createNewAssistantPal())}>Create assistant</Button>
         <View style={{flexDirection: 'row', gap: 8, flexWrap: 'wrap'}}>
           <Button mode="outlined" onPress={() => setCurrent(createNewRoleplayPal())}>Roleplay</Button>

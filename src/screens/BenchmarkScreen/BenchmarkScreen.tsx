@@ -1,5 +1,5 @@
 import {View, ScrollView} from 'react-native';
-import React, {useState, useCallback, useContext} from 'react';
+import React, {useState, useCallback, useContext, useEffect} from 'react';
 
 import {v4 as uuidv4} from 'uuid';
 import {observer} from 'mobx-react';
@@ -65,6 +65,8 @@ const BENCHMARK_PARAMS_METADATA = {
 };
 
 export const BenchmarkScreen: React.FC = observer(() => {
+  const [memory, setMemory] = useState<{used: number; total: number} | null>(null);
+  useEffect(() => { let alive = true; const refresh = async () => { try { const [used,total] = await Promise.all([RNDeviceInfo.getUsedMemory(),RNDeviceInfo.getTotalMemory()]); if (alive) setMemory({used,total}); } catch {} }; refresh(); const timer = setInterval(refresh, 3000); return () => { alive = false; clearInterval(timer); }; }, []);
   const [isRunning, setIsRunning] = useState(false);
   const [runError, setRunError] = useState(false);
   const [selectedConfig, setSelectedConfig] = useState<BenchmarkConfig>(
@@ -541,6 +543,15 @@ export const BenchmarkScreen: React.FC = observer(() => {
       <ScrollView style={styles.scrollView}>
         <Card elevation={0} style={styles.card}>
           <Card.Content>
+            <Text variant="headlineMedium">System intelligence</Text>
+            <Text variant="bodyMedium">Live application memory and local benchmarks</Text>
+            <View style={{padding: 16, gap: 8, marginVertical: 12, borderRadius: 16, backgroundColor: theme.colors.surface}}>
+              <Text variant="titleMedium">Application memory</Text>
+              <Text variant="headlineSmall">{memory ? (memory.used / 1073741824).toFixed(2) + ' GB' : 'Unavailable'}</Text>
+              <Text>Device RAM: {memory ? (memory.total / 1073741824).toFixed(1) + ' GB' : 'Unavailable'}</Text>
+              <Text>Active model: {modelStore.activeModel?.name || 'None'}</Text>
+              <Text>Context: {modelStore.context ? 'Loaded' : 'Not loaded'}</Text>
+            </View>
             <DeviceInfoCard onDeviceInfo={handleDeviceInfo} />
             {renderModelSelector()}
 

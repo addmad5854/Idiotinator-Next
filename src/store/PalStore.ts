@@ -161,6 +161,15 @@ class PalStore {
 
       // Initialize Pip pal (idempotent — see initializePipPal).
       await this.initializePipPal();
+      for (const p of this.pals.slice()) {
+        if (p.source !== 'local' || p.isSystemPromptChanged) continue;
+        if (p.name === 'Pip' && p.systemPrompt === 'You are Pip, a friendly and helpful assistant who runs locally on the user’s phone. Keep replies concise and warm.') {
+          await this.updatePal(p.id, {name: 'Idiotinator', description: 'Local analytical assistant', systemPrompt: 'You are Idiotinator, a curious, direct, evidence-driven assistant with occasional dry humour. Admit uncertainty and be serious when needed.'});
+        }
+        if (p.name === 'Lookie' && p.systemPrompt === 'You are Lookie, an AI assistant giving real-time, concise descriptions of a video feed. Use few words. If unsure, say so clearly.') {
+          await this.updatePal(p.id, {name: 'Vision', description: 'Camera analysis with a compatible vision model', systemPrompt: 'You are Idiotinator Vision. Describe visible evidence concisely and admit uncertainty.'});
+        }
+      }
 
       // Register talent engines (idempotent)
       registerDefaultTalents();

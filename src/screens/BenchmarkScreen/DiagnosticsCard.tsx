@@ -2,6 +2,7 @@ import React, {useRef, useState, useEffect} from 'react';
 import * as RNFS from '@dr.pogodin/react-native-fs';
 import NativeShare from 'react-native-share';
 import type {GenerationLease} from '../../store/generationLease';
+import {diagnosticStatus} from '../../utils/diagnosticStatus';
 import {Share, View} from 'react-native';
 import {Button, Text} from 'react-native-paper';
 import Clipboard from '@react-native-clipboard/clipboard';
@@ -13,7 +14,7 @@ import {detectQuantizationType} from '../../utils/deviceSelection';
 import {modelStore} from '../../store';
 
 type Check = {name: string; status: 'pass' | 'fail' | 'unavailable' | 'not_tested' | 'cancelled'; data?: unknown};
-export const DiagnosticsCard = ({busy}: {busy: boolean}) => {
+export const DiagnosticsCard = ({busy, onRunning}: {busy: boolean; onRunning: (value: boolean) => void}) => {
   const lock = useRef(false);
   const active = useRef<GenerationLease | null>(null);
   const cancelled = useRef(false);
@@ -26,19 +27,19 @@ export const DiagnosticsCard = ({busy}: {busy: boolean}) => {
     if (lock.current || busy) return;
     lock.current = true;
     cancelled.current = false;
+    onRunning(true);
     setRunning(true);
     setError('');
     setReport('');
     const checks: Check[] = [];
     const probe = async (name: string, fn: () => Promise<unknown>) => {
       try {
-        if (cancelled.current) {checks.push({name, status: 'cancelled'}); return;}
+        if (cancelled.current || active.current?.signal.aborted) {checks.push({name, status: 'cancelled'}); return;}
         const data = await fn();
-        const value = data as {match?: boolean; interrupted?: boolean; loaded?: boolean} | null;
-        checks.push({name, status: cancelled.current ? 'cancelled' : value == null || value.loaded === false ? 'unavailable' : value.match === false || value.interrupted === true ? 'fail' : 'pass', data});
+        checks.push({name, status: diagnosticStatus(data, cancelled.current || !!active.current?.signal.aborted), data});
       } catch (e) {
         // Do not export raw exceptions: they may contain private paths or URLs.
-        checks.push({name, status: 'fail', data: e instanceof Error ? e.name : 'UnknownError'});
+        checks.push({name, status: cancelled.current || active.current?.signal.aborted ? 'cancelled' : 'fail', data: e instanceof Error ? e.name : 'UnknownError'});
       }
     };
     try {
@@ -57,7 +58,7 @@ export const DiagnosticsCard = ({busy}: {busy: boolean}) => {
         const s = modelStore.activeContextSettings;
         return {loaded: !!c, model: c ? {name: modelStore.activeModel?.name, quantization: detectQuantizationType(modelStore.activeModel?.filename || ''), size: c.model.size, parameters: c.model.nParams} : null, settings: s ? {n_ctx: s.n_ctx, n_ubatch: s.n_ubatch, n_gpu_layers: s.n_gpu_layers, devices: s.devices} : null};
       });
-      if (full && modelStore.context) {
+      if (full && modelStore.context && !cancelled.current) {
         const lease = modelStore.tryAcquireGeneration();
         if (lease) {
           active.current = lease;
@@ -72,6 +73,11 @@ export const DiagnosticsCard = ({busy}: {busy: boolean}) => {
               const answer = (result.content || result.text || '').trim();
               return {answer, expected: '42', match: /^42[.!]?$/.test(answer), elapsedMs: Date.now() - start, firstTokenMs: first, timings: result.timings, interrupted: result.interrupted};
             });
+            await probe('instruction_following', async () => {
+              const result = await lease.engine.completion({messages: [{role: 'user', content: 'Reply with only the word BLUE.'}], n_predict: 16, temperature: 0, enable_thinking: false, chat_template_kwargs: {enable_thinking: false}});
+              const answer = (result.content || result.text || '').trim();
+              return {answer, expected: 'BLUE', match: /^BLUE[.!]?$/i.test(answer), interrupted: result.interrupted};
+            });
             await probe('reasoning', async () => {const start = Date.now(); const level = await chooseReasoning(lease.engine, 'Prove that the square root of two is irrational.', '', lease.signal); return {level, expected: 'deep', match: level === 'deep', elapsedMs: Date.now() - start};});
           } finally {clearTimeout(timeout); lease.signal.removeEventListener('abort', stop); active.current = null; lease.end();}
         } else {checks.push({name: 'generation', status: 'unavailable'}, {name: 'reasoning', status: 'unavailable'});}
@@ -79,16 +85,17 @@ export const DiagnosticsCard = ({busy}: {busy: boolean}) => {
       for (const name of ['actual_gpu_offload','math_rendering','offline_network_isolation','voice','thermal','native_logs']) {
         checks.push({name, status: 'not_tested'});
       }
-      setReport(JSON.stringify({schema: 1, createdAt: new Date().toISOString(), mode: full ? 'local_inference' : 'read_only', note: 'Pass means the probe returned data, not that acceleration or inference works.', checks}, null, 2));
-    } finally {
+      setReport(JSON.stringify({schema: 1, createdAt: new Date().toISOString(), mode: full ? 'local_inference' : 'read_only', note: 'Inventory pass means data collected; functional pass means expected output matched. Actual GPU offloading is not verified.', checks}, null, 2));
+    } catch {setError('Diagnostic run failed. Retry with no other inference active.');} finally {
       lock.current = false;
+      onRunning(false);
       setRunning(false);
     }
   };
   return (
     <View style={{gap: 8, marginVertical: 12}}>
       <Text variant="titleLarge">Diagnostics &amp; Self-Test</Text>
-      <Text>Read-only local hardware and inference configuration report. No chat content, account identifiers or automatic upload.</Text>
+      <Text>Local hardware inventory and optional controlled inference tests. No chat content, account identifiers or automatic upload.</Text>
       <Button mode="contained" disabled={busy || running} loading={running} onPress={() => run(false)}>Run quick diagnostics</Button>
       <Button mode="outlined" disabled={busy || running || !modelStore.context} onPress={() => run(true)}>Run inference self-test</Button>
       {running ? <Button onPress={cancel}>Cancel self-test</Button> : null}

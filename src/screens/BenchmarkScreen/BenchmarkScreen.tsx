@@ -68,6 +68,7 @@ const BENCHMARK_PARAMS_METADATA = {
 export const BenchmarkScreen: React.FC = observer(() => {
   const [memory, setMemory] = useState<{used: number; total: number} | null>(null);
   useEffect(() => { let alive = true; const refresh = async () => { try { const [used,total] = await Promise.all([RNDeviceInfo.getUsedMemory(),RNDeviceInfo.getTotalMemory()]); if (alive) setMemory({used,total}); } catch {} }; refresh(); const timer = setInterval(refresh, 3000); return () => { alive = false; clearInterval(timer); }; }, []);
+  const [diagnosticRunning, setDiagnosticRunning] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [runError, setRunError] = useState(false);
   const [selectedConfig, setSelectedConfig] = useState<BenchmarkConfig>(
@@ -103,6 +104,7 @@ export const BenchmarkScreen: React.FC = observer(() => {
   };
 
   const handleModelSelect = async (model: Model) => {
+    if (diagnosticRunning || isRunning || modelStore.isGenerationBusy) return;
     setShowModelMenu(false);
     if (model.id !== modelStore.activeModelId) {
       try {
@@ -143,10 +145,12 @@ export const BenchmarkScreen: React.FC = observer(() => {
   };
 
   const runBenchmark = async () => {
-    if (!modelStore.context || !modelStore.activeModel) {
+    if (diagnosticRunning || isRunning || !modelStore.context || !modelStore.activeModel) {
       return;
     }
 
+    const lease = modelStore.tryAcquireGeneration();
+    if (!lease) return;
     setIsRunning(true);
     setRunError(false);
     let peakMemoryUsage: NonNullable<
@@ -208,6 +212,7 @@ export const BenchmarkScreen: React.FC = observer(() => {
         console.error('Benchmark error:', error);
       }
     } finally {
+      lease.end();
       clearInterval(memoryCheckInterval);
       setIsRunning(false);
     }
@@ -553,7 +558,7 @@ export const BenchmarkScreen: React.FC = observer(() => {
               <Text>Active model: {modelStore.activeModel?.name || 'None'}</Text>
               <Text>Context: {modelStore.context ? 'Loaded' : 'Not loaded'}</Text>
             </View>
-            <DiagnosticsCard busy={isRunning || !!modelStore.loadingModel} />
+            <DiagnosticsCard busy={isRunning || !!modelStore.loadingModel || modelStore.isGenerationBusy} onRunning={setDiagnosticRunning} />
             <DeviceInfoCard onDeviceInfo={handleDeviceInfo} />
             {renderModelSelector()}
 
@@ -590,7 +595,7 @@ export const BenchmarkScreen: React.FC = observer(() => {
                       testID="start-test-button"
                       mode="contained"
                       onPress={runBenchmark}
-                      disabled={isRunning}
+                      disabled={isRunning || diagnosticRunning || modelStore.isGenerationBusy}
                       style={styles.button}>
                       {isRunning
                         ? l10n.benchmark.buttons.runningTest

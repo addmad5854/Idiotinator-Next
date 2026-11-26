@@ -69,9 +69,11 @@ export async function resolveDeviceSelection(selection: {
   const available = await getAvailableDevices();
   const requested = snapshot.devices?.find(name => name.startsWith('HTP'));
   const device = available.find(d => d.deviceName === requested && !/[*?]/.test(d.deviceName)) ?? selectHexagonDevice(available);
-  return device
-    ? {...snapshot, devices: [device.deviceName]}
-    : {devices: ['CPU'], n_gpu_layers: 0};
+  if (!device) {
+    console.warn('[DeviceSelection] Requested Hexagon backend unavailable; resolving to CPU with zero accelerator layers.');
+    return {devices: ['CPU'], n_gpu_layers: 0};
+  }
+  return {...snapshot, devices: [device.deviceName]};
 }
 
 /**

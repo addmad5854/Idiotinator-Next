@@ -128,7 +128,7 @@ export async function getDeviceOptions(): Promise<DeviceOption[]> {
   // Android: Build options based on available devices
   const devices = await getAvailableDevices();
   const hexagonDevice = selectHexagonDevice(devices);
-  const gpuDev = devices.find(d => d.type === 'gpu' && !!d.deviceName && !/[*?]/.test(d.deviceName));
+  const gpuDev = devices.find(d => d.type === 'gpu' && !!d.deviceName && !d.deviceName.startsWith('HTP') && /opencl/i.test(d.deviceName) && !/[*?]/.test(d.deviceName));
 
   // Option 1: CPU (always available, recommended for reliability)
   // CPU supports all flash attention types
@@ -169,7 +169,7 @@ export async function getDeviceOptions(): Promise<DeviceOption[]> {
     options.push({
       id: 'hexagon',
       label: 'Hexagon',
-      description: 'Qualcomm NPU (Experimental, fastest but may be unstable)',
+      description: 'Qualcomm NPU (Experimental; performance and compatibility require testing)',
       devices: [hexagonDevice.deviceName],
       n_gpu_layers: 99,
       default_flash_attn_type: 'off',
@@ -315,7 +315,7 @@ export async function isHexagonAvailable(): Promise<boolean> {
  */
 export async function isGpuAvailable(): Promise<boolean> {
   const devices = await getAvailableDevices();
-  return devices.some(d => d.type === 'gpu' && !!d.deviceName && !/[*?]/.test(d.deviceName));
+  return devices.some(d => d.type === 'gpu' && !!d.deviceName && !d.deviceName.startsWith('HTP') && /opencl/i.test(d.deviceName) && !/[*?]/.test(d.deviceName));
 }
 
 /**

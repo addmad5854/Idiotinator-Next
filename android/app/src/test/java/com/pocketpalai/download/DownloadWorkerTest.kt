@@ -40,6 +40,7 @@ class DownloadWorkerTest {
     private val dao = database.downloadDao()
     private val runs = DownloadRuns()
     private var clock = 0L
+    private var foregroundStarts = 0
     private val engine = DownloadEngine(dao, runs, now = { clock }, sleep = { clock += it })
     private val content = ByteArray(200_000) { (it % 251).toByte() }.also { "GGUF".toByteArray().copyInto(it) }
     private val destination by lazy { File(tmp.root, "model.gguf") }
@@ -59,7 +60,10 @@ class DownloadWorkerTest {
             .setInputData(workDataOf(DownloadWorker.KEY_DOWNLOAD_ID to ID, DownloadWorker.KEY_PROGRESS_INTERVAL to 0L))
             .setWorkerFactory(object : WorkerFactory() {
                 override fun createWorker(appContext: Context, workerClassName: String, workerParameters: WorkerParameters) =
-                    DownloadWorker(appContext, workerParameters, engine, runs)
+                    DownloadWorker(appContext, workerParameters, engine, runs) { info ->
+                        assertEquals(android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC, info.foregroundServiceType)
+                        foregroundStarts++
+                    }
             })
             .build()
     }
@@ -85,6 +89,7 @@ class DownloadWorkerTest {
 
         assertEquals(ListenableWorker.Result.success(), result)
         assertEquals(DownloadStatus.COMPLETED, row().status)
+        assertEquals(1, foregroundStarts)
     }
 
     @Test

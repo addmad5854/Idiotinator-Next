@@ -5,3 +5,5 @@ Authorized v0.1.11 rebuild after verified delimiter source repair
 2026-11-26: Rebuild after TypeScript mmap and ccache reporting fixes.
 
 2026-11-26: Rebuild with corrected dual-ABI cache key.
+
+Verify adaptive knowledge extraction and confidence retrieval

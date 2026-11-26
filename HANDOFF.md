@@ -1,0 +1,3 @@
+# Development handoff
+
+For any new conversation, read PROJECT_STATE.md, ROADMAP.md, PATCH_TRACKER.md, TEST_REPORT.md and KNOWN_ISSUES.md, then inspect latest main commits and CI. Existing detailed engineering plans take precedence over this recovered summary where compatible. Do not restart or replace working architecture. Use PocketPal stable features selectively; preserve Idiotinator branding and offline assistant functionality. UI redesign deferred. Resume downloader package 1 at native test gate and recover exact D06–D15 scope before implementing. Update these records after each patch package, including evidence, blockers, next action and source SHA. Never claim a build/test/device pass without evidence or publish stable before approval.

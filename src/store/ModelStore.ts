@@ -2477,6 +2477,7 @@ class ModelStore {
       draftConfig,
     );
 
+    let initializingContext: LlamaContext | undefined;
     try {
       // Create properly versioned ContextInitParams
       const contextInitParams = createContextInitParams(effectiveSettings);
@@ -2492,6 +2493,7 @@ class ModelStore {
           //console.log('progress: ', _progress);
         },
       );
+      initializingContext = ctx;
       const t1 = Date.now();
       console.log('init time: ', t1 - t0);
 
@@ -2586,6 +2588,15 @@ class ModelStore {
 
       return ctx;
     } catch (error) {
+      // A native context may exist even if post-init capability discovery fails.
+      // Release only an unpublished context; published contexts belong to the store.
+      if (initializingContext && this.context !== initializingContext) {
+        try {
+          await initializingContext.release();
+        } catch (cleanupError) {
+          console.warn('[ModelStore] Failed to release incomplete context:', cleanupError);
+        }
+      }
       console.error(
         `Failed to initialize model context for "${model.name}" (${model.id}):`,
         error,

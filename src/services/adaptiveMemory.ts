@@ -1,4 +1,4 @@
-import {readMemoryRows, writeMemoryRows} from './memoryDatabase';
+import {readMemoryRows, writeMemoryRows, searchMemoryRows} from './memoryDatabase';
 import {isSensitiveMemory} from './memoryPrivacy';
 import {extractFeedback, confidence, type LearningEvidence} from './learningEvidence';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -30,7 +30,7 @@ async function readLegacyEntries(): Promise<MemoryEntry[]> {
 }
 
 let migrated = false;
-async function readEntries(): Promise<MemoryEntry[]> {
+async function ensureMigrated(): Promise<void> {
   if (!migrated) {
     const marker = await AsyncStorage.getItem(KEY + '/sqlite');
     if (marker !== 'true') {
@@ -44,7 +44,13 @@ async function readEntries(): Promise<MemoryEntry[]> {
     await AsyncStorage.removeItem(KEY);
     migrated = true;
   }
+}
+async function readEntries(): Promise<MemoryEntry[]> {
+  await ensureMigrated();
   return readMemoryRows();
+}
+export function findRelevantMemories(query:string): Promise<MemoryEntry[]> {
+  return mutate(async()=>{await ensureMigrated(); return retrieveMemories(await searchMemoryRows([...keywords(query)]),query);});
 }
 async function persistEntries(entries: MemoryEntry[]): Promise<void> {
   await readEntries();

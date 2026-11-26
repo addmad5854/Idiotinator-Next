@@ -18,7 +18,7 @@ jobs:
       ORG_GRADLE_PROJECT_reactNativeArchitectures: 'arm64-v8a,x86_64'
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # Must precede setup-node and setup-java: /opt/hostedtoolcache is where
       # those install. The Hexagon SDK adds ~3.1 GB on top of a from-source build.
@@ -30,14 +30,14 @@ jobs:
 
       # Set up Node.js environment
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '22.21.0'
           cache: 'yarn'
 
       # Cache node_modules
       - name: Cache node_modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('package.json', 'yarn.lock', 'patches/**') }}
@@ -62,7 +62,7 @@ jobs:
         run: yarn test --runInBand --coverage=false src/utils/__tests__/diagnosticStatus.test.ts src/components/MarkdownView/__tests__/normalizeBreakTags.test.ts src/utils/__tests__/idiotinatorReasoning.test.ts src/components/MarkdownView/__tests__/invariants.test.ts src/components/MarkdownView/__tests__/MarkdownView.test.tsx
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'

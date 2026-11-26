@@ -1,3 +1,4 @@
+import {Q} from '@nozbe/watermelondb';
 import {database} from '../database';
 import type AdaptiveMemory from '../database/models/AdaptiveMemory';
 import type {MemoryEntry} from './adaptiveMemory';
@@ -19,4 +20,10 @@ export async function writeMemoryRows(entries: MemoryEntry[]): Promise<void> {
     }
     if (operations.length) await database.batch(...operations);
   });
+}
+
+export async function searchMemoryRows(terms: string[]): Promise<MemoryEntry[]> {
+  if (!terms.length) return [];
+  const clauses = terms.slice(0,32).map(term=>Q.where('payload',Q.like('%'+Q.sanitizeLikeString(term)+'%')));
+  return (await collection().query(Q.or(...clauses)).fetch()).map(row=>JSON.parse(row.payload) as MemoryEntry);
 }

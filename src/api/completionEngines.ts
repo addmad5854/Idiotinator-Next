@@ -1,4 +1,6 @@
 import {LlamaContext} from 'llama.rn';
+import {Platform} from 'react-native';
+import {getCpuInfo} from '../utils/deviceCapabilities';
 
 import {streamChatCompletion} from './openai';
 import type {RemoteEndpoint} from './servers';
@@ -20,6 +22,29 @@ export class LocalCompletionEngine implements CompletionEngine {
     params: ApiCompletionParams,
     callback?: (data: CompletionStreamData) => void,
   ): Promise<CompletionResult> {
+    // Android thermal status is OS-reported, not an inferred temperature.
+    const thermal = async () => Platform.OS === 'android' ? (await getCpuInfo())?.thermalStatus : undefined;
+    const initial = await thermal();
+    if (initial !== undefined && initial >= 3) {
+      throw new Error('Device is too hot for local inference. Allow it to cool and retry.');
+    }
+    let finished = false;
+    let checking = false;
+    let stoppedForHeat = false;
+    const monitor = Platform.OS === 'android' ? setInterval(async () => {
+      if (finished || checking || stoppedForHeat) return;
+      checking = true;
+      try {
+        const status = await thermal();
+        if (!finished && status !== undefined && status >= 3) {
+          stoppedForHeat = true;
+          await this.context.stopCompletion();
+        }
+      } catch {
+        // Monitoring failure must not crash inference.
+      } finally { checking = false; }
+    }, 5000) : undefined;
+    try {
     const result = await this.context.completion(
       params,
       callback
@@ -50,8 +75,12 @@ export class LocalCompletionEngine implements CompletionEngine {
       stopped_word: result.stopped_word,
       stopping_word: result.stopping_word,
       context_full: result.context_full,
-      interrupted: result.interrupted,
+      interrupted: result.interrupted || stoppedForHeat,
     };
+    } finally {
+      finished = true;
+      if (monitor !== undefined) clearInterval(monitor);
+    }
   }
 
   async stopCompletion(): Promise<void> {

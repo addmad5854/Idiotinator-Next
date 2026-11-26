@@ -62,7 +62,7 @@ jobs:
         run: yarn test --runInBand --coverage=false src/utils/__tests__/diagnosticStatus.test.ts src/components/MarkdownView/__tests__/normalizeBreakTags.test.ts src/utils/__tests__/idiotinatorReasoning.test.ts src/components/MarkdownView/__tests__/invariants.test.ts src/components/MarkdownView/__tests__/MarkdownView.test.tsx
 
       - name: Shared PocketPal functional regression suites
-        run: yarn test --runInBand --coverage=false src/utils/__tests__/deviceSelection.test.ts src/components/ChatInput/__tests__ src/hooks/__tests__/useVoiceCapture.test.ts src/hooks/__tests__/useVoiceMode.test.ts src/store/__tests__/VoiceModeStore.test.ts src/components/VoiceModeView/__tests__
+        run: yarn test --runInBand --coverage=false src/utils/__tests__/hfDownloadLink.test.ts src/utils/__tests__/hfResolve.test.ts src/services/downloads/__tests__/DownloadManager.test.ts src/utils/__tests__/deviceSelection.test.ts src/components/ChatInput/__tests__ src/hooks/__tests__/useVoiceCapture.test.ts src/hooks/__tests__/useVoiceMode.test.ts src/store/__tests__/VoiceModeStore.test.ts src/components/VoiceModeView/__tests__
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:

@@ -82,7 +82,9 @@ class DownloadScheduler(
 
     override suspend fun schedule(downloadId: String, totalBytes: Long, progressIntervalMs: Long) {
         cancelRunners(downloadId)
-        if (Build.VERSION.SDK_INT >= 34 && scheduleUserInitiated(downloadId, totalBytes, progressIntervalMs)) {
+        // Prefer resumable WorkManager on Android 15+ where UIDT jobs have been
+        // observed stopping unexpectedly on the target device.
+        if (Build.VERSION.SDK_INT == 34 && scheduleUserInitiated(downloadId, totalBytes, progressIntervalMs)) {
             return
         }
         Log.d(TAG, "Scheduling WorkManager run for $downloadId")

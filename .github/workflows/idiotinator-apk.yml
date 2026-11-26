@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 120
     env:
       ORG_GRADLE_PROJECT_rnllamaBuildFromSource: 'true'
-      ORG_GRADLE_PROJECT_reactNativeArchitectures: ${{ inputs.smoke_test && 'arm64-v8a,x86_64' || 'arm64-v8a' }}
+      ORG_GRADLE_PROJECT_reactNativeArchitectures: 'arm64-v8a,x86_64'
     steps:
       - name: Check out code
         uses: actions/checkout@v3

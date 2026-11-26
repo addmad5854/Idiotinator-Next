@@ -167,7 +167,8 @@ class DownloadEngine(
                 if (!file.delete()) return End.Failed("Could not remove the previous download")
                 return null
             }
-            if (file.length() == row.totalBytes) {
+            if (file.length() == row.totalBytes &&
+                (!file.name.endsWith(MODEL_SUFFIX, ignoreCase = true) || startsWithModelMagic(file))) {
                 dao.writeProgress(row.id, row.totalBytes, row.totalBytes)
                 return End.Completed
             }
@@ -249,7 +250,8 @@ class DownloadEngine(
                 code == 416 -> {
                     val total = UNSATISFIED_RANGE.find(response.header("Content-Range").orEmpty())
                         ?.groupValues?.get(1)?.toLongOrNull()
-                    val complete = offset > 0 && (if (totalBytes > 0) offset == totalBytes else total == offset)
+                    val complete = offset > 0 && total == offset &&
+                        (totalBytes <= 0 || totalBytes == offset)
                     if (!complete) return Attempt.Restart
                     totalBytes = offset
                     Attempt.Finished(End.Completed)
@@ -300,6 +302,7 @@ class DownloadEngine(
                     onProgress(written, totalBytes)
                 }
             }
+            if (totalBytes > 0 && written < totalBytes) return Attempt.Transient
             return Attempt.Finished(End.Completed)
         }
 

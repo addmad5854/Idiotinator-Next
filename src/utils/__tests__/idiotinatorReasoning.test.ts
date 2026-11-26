@@ -39,3 +39,10 @@ test('ambiguous request uses model classifier rather than proof shortcut', async
   expect(await chooseReasoning(engine, 'Explain this difficult problem', 'context', new AbortController().signal)).toBe('deep');
   expect(completion).toHaveBeenCalledTimes(1);
 });
+
+test.each(['How are you feeling?', "How's it going?", 'Who are you?', 'What can you do?'])('casual prompt %s skips classification', async prompt => {
+  const completion = jest.fn();
+  const engine: CompletionEngine = {completion, stopCompletion: jest.fn()};
+  expect(await chooseReasoning(engine, prompt, 'history', new AbortController().signal)).toBe('instant');
+  expect(completion).not.toHaveBeenCalled();
+});

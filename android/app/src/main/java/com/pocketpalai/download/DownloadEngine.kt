@@ -302,7 +302,6 @@ class DownloadEngine(
                     onProgress(written, totalBytes)
                 }
             }
-            if (totalBytes > 0 && written < totalBytes) return Attempt.Transient
             return Attempt.Finished(End.Completed)
         }
 

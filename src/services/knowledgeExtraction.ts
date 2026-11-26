@@ -4,7 +4,7 @@ import {finalAnswer} from '../utils/idiotinatorReasoning';
 
 export function groundedCandidate(input: string, output: string): string | null {
   const quote = finalAnswer(output).trim();
-  if (isSensitiveMemory(input) || quote.length < 12 || quote.length > 240 || !input.includes(quote)) return null;
+  if (isSensitiveMemory(input) || quote.length < 12 || quote.length > 240 || !input.split(/(?<=[.!?])\s+/).some(sentence=>sentence.trim()===quote)) return null;
   if (/[?\n]|password|secret|api key|credit card|\b(?:pretend|hypothetically|imagine)\b/i.test(input)) return null;
   return quote;
 }

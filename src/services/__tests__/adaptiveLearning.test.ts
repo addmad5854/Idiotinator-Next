@@ -70,3 +70,6 @@ test('aborted extraction waits for native stop and discards result',async()=>{
   expect(await pending).toBeNull();
   expect(stopCompletion).toHaveBeenCalledTimes(1);
 });
+
+test('extraction cannot omit negation from a sentence',()=>{expect(groundedCandidate('I do not prefer English','prefer English')).toBeNull();expect(groundedCandidate('My motorcycle is not blue','My motorcycle is')).toBeNull();});
+test('explicit secrets are not persisted',async()=>{await rememberExplicit('My password is abcdef');expect(await listMemories()).toEqual([]);});

@@ -245,6 +245,11 @@ jobs:
       - name: Verify the Plus store gate
         run: scripts/verify-plus-gate.sh android/app/build/outputs/apk/prod/release/app-prod-release.apk --ungated
 
+      - name: Verify APK release metadata
+        run: |
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging android/app/build/outputs/apk/prod/release/app-prod-release.apk > apk-badging.txt
+          grep -F "versionCode='169'" apk-badging.txt
+          grep -F "versionName='0.2.0'" apk-badging.txt
       - name: Verify APK architectures
         run: |
           python3 - <<'PY'

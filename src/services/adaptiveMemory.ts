@@ -53,7 +53,7 @@ export function findRelevantMemories(query:string): Promise<MemoryEntry[]> {
   return mutate(async()=>{await ensureMigrated(); return retrieveMemories(await searchMemoryRows([...keywords(query)]),query);});
 }
 async function persistEntries(entries: MemoryEntry[]): Promise<void> {
-  await readEntries();
+  await ensureMigrated();
   await writeMemoryRows(entries);
 }
 function mutate<T>(fn: () => Promise<T>): Promise<T> {
@@ -70,7 +70,7 @@ export function rememberExplicit(text: string): Promise<void> {
   return mutate(async () => {
     if (!(await memoryEnabled())) return;
     const clean = normalizeMemory(text);
-    if (!clean) return;
+    if (!clean || isSensitiveMemory(clean)) return;
     const entries = await readEntries();
     const existing = entries.find(e => e.text.toLowerCase() === clean.toLowerCase());
     if (existing) {
@@ -119,7 +119,7 @@ export function retrieveMemories(entries: MemoryEntry[], query: string, charBudg
 export function updateMemory(id: string, text: string): Promise<void> {
   return mutate(async () => {
     const clean = normalizeMemory(text);
-    if (!clean) throw new Error('Memory cannot be empty');
+    if (!clean || isSensitiveMemory(clean)) throw new Error('Memory is empty or contains sensitive information');
     const entries = await readEntries();
     if (!entries.some(e => e.id === id)) throw new Error('Memory not found');
     await persistEntries(entries.map(e => e.id === id ? {...e, text: clean, evidence: undefined} : e));
@@ -139,6 +139,7 @@ export function restoreMemories(raw: string): Promise<void> {
       if (!e || typeof e.id !== 'string' || !e.id || ids.has(e.id) || typeof e.text !== 'string' || !normalizeMemory(e.text) || e.source !== 'user' || !Number.isFinite(e.createdAt)) throw new Error('Invalid memory entry');
       ids.add(e.id);
       const text = normalizeMemory(e.text);
+      if (isSensitiveMemory(text)) throw new Error('Backup contains sensitive information');
       if (e.evidence !== undefined && (!e.evidence || !['user_statement','user_correction','user_confirmed_success','model_candidate'].includes(e.evidence.kind) || typeof e.evidence.text !== 'string' || normalizeMemory(e.evidence.text) !== text || !Number.isFinite(e.evidence.recordedAt) || e.evidence.recordedAt <= 0)) throw new Error('Invalid memory evidence');
       return {id:e.id,text,source:'user',createdAt:e.createdAt,...(e.evidence ? {evidence:{kind:e.evidence.kind,text,recordedAt:e.evidence.recordedAt}} : {})};
     });

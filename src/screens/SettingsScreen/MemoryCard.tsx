@@ -1,3 +1,4 @@
+import {confidence} from '../../services/learningEvidence';
 import React, {useEffect, useState} from 'react';
 import {Alert, Share, View} from 'react-native';
 import {Button, Card, Switch, Text, TextInput} from 'react-native-paper';
@@ -45,6 +46,7 @@ export function MemoryCard() {
         <Button onPress={() => setEditing(null)}>Cancel</Button>
       </> : <>
         <Text selectable>{e.text}</Text>
+        <Text variant="bodySmall">{e.evidence?.kind === 'model_candidate' ? 'Unconfirmed candidate' : e.evidence?.kind === 'user_correction' ? 'Correction' : e.evidence?.kind === 'user_confirmed_success' ? 'Successful strategy' : 'User statement'} · Retrieval weight {confidence({key:e.id,claim:e.text,disputed:false,evidence:[e.evidence ?? {kind:'user_statement',text:e.text,recordedAt:e.createdAt}]}).toFixed(2)}</Text>
         <Button disabled={busy} onPress={() => {setEditing(e.id); setDraft(e.text);}}>Edit</Button>
         <Button disabled={busy} onPress={() => Alert.alert('Delete memory?', e.text, [{text:'Cancel',style:'cancel'},{text:'Delete',style:'destructive',onPress:() => {void run(() => deleteMemory(e.id));}}])}>Delete</Button>
       </>}

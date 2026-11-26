@@ -1,3 +1,4 @@
+import {isSensitiveMemory} from '../memoryPrivacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {retrieveMemories, rememberExplicit, listMemories, learnFeedback, setAutoLearningEnabled, setMemoryEnabled, saveKnowledgeCandidate, updateMemory, exportMemories, restoreMemories, type MemoryEntry} from '../adaptiveMemory';
 import {groundedCandidate} from '../knowledgeExtraction';
@@ -44,3 +45,6 @@ test('editing invalidates evidence and backup retains valid evidence',async()=>{
 test('disputed evidence receives zero confidence',()=>{
   expect(confidence({key:'x',claim:'x',disputed:true,evidence:[]})).toBe(0);
 });
+
+test('privacy screening catches email and long identifiers',()=>{expect(isSensitiveMemory('Contact me at test@example.com')).toBe(true);expect(isSensitiveMemory('My identifier is 123456789012')).toBe(true);expect(isSensitiveMemory('My motorcycle is blue')).toBe(false);});
+test('mismatched evidence receives no confidence',()=>{expect(confidence({key:'x',claim:'new',disputed:false,evidence:[{kind:'user_correction',text:'old',recordedAt:1}]})).toBe(0);});

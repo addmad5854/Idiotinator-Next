@@ -4,12 +4,12 @@ export type LearningEvidence = {kind: EvidenceKind; text: string; recordedAt: nu
 export type LearningRecord = {key: string; claim: string; evidence: LearningEvidence[]; disputed: boolean};
 export function confidence(record: LearningRecord): number {
   if (record.disputed) return 0;
-  const kinds = new Set(record.evidence.map(e => e.kind));
+  const kinds = new Set(record.evidence.filter(e => e.text.trim() === record.claim.trim() && Number.isFinite(e.recordedAt) && e.recordedAt > 0).map(e => e.kind));
   if (kinds.has('user_correction') || kinds.has('user_confirmed_success')) return 0.9;
   if (kinds.has('user_statement')) return 0.8;
   // A URL is provenance, not independent verification.
   if (kinds.has('web_source')) return 0.4;
-  return 0.1;
+  return kinds.has('model_candidate') ? 0.1 : 0;
 }
 export function extractFeedback(input: string): LearningEvidence | null {
   const text = input.trim();
@@ -22,5 +22,5 @@ export function extractFeedback(input: string): LearningEvidence | null {
   return {kind: correction ? 'user_correction' : 'user_confirmed_success', text: claim, recordedAt: Date.now()};
 }
 export function mayUseAsConfirmed(record: LearningRecord): boolean {
-  return confidence(record) >= 0.8;
+  return !record.disputed && confidence(record) >= 0.8;
 }

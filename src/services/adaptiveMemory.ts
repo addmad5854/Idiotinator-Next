@@ -41,6 +41,7 @@ export async function listMemories(): Promise<MemoryEntry[]> {
 
 export function rememberExplicit(text: string): Promise<void> {
   return mutate(async () => {
+    if (!(await memoryEnabled())) return;
     const clean = normalizeMemory(text);
     if (!clean) return;
     const entries = await readEntries();
@@ -106,7 +107,7 @@ export function restoreMemories(raw: string): Promise<void> {
     const entries: MemoryEntry[] = data.entries.map((e: MemoryEntry) => {
       if (!e || typeof e.id !== 'string' || !e.id || ids.has(e.id) || typeof e.text !== 'string' || !normalizeMemory(e.text) || e.source !== 'user' || !Number.isFinite(e.createdAt)) throw new Error('Invalid memory entry');
       ids.add(e.id);
-      return {id: e.id, text: normalizeMemory(e.text), source: 'user', createdAt: e.createdAt, ...(e.evidence && ['user_correction', 'user_confirmed_success', 'model_candidate'].includes(e.evidence.kind) && typeof e.evidence.text === 'string' && Number.isFinite(e.evidence.recordedAt) ? {evidence: {kind: e.evidence.kind, text: normalizeMemory(e.evidence.text), recordedAt: e.evidence.recordedAt}} : {})};
+      return {id: e.id, text: normalizeMemory(e.text), source: 'user', createdAt: e.createdAt, ...(e.evidence && ['user_correction', 'user_confirmed_success', 'model_candidate'].includes(e.evidence.kind) && typeof e.evidence.text === 'string' && normalizeMemory(e.evidence.text) === normalizeMemory(e.text) && Number.isFinite(e.evidence.recordedAt) && e.evidence.recordedAt > 0 ? {evidence: {kind: e.evidence.kind, text: normalizeMemory(e.evidence.text), recordedAt: e.evidence.recordedAt}} : {})};
     });
     await AsyncStorage.setItem(KEY, serializeEntries(entries));
   });
@@ -117,7 +118,7 @@ export async function memoryEnabled(): Promise<boolean> {
   return (await AsyncStorage.getItem(ENABLE_KEY)) !== 'false';
 }
 export async function setMemoryEnabled(enabled: boolean): Promise<void> {
-  await AsyncStorage.setItem(ENABLE_KEY, String(enabled));
+  await mutate(() => AsyncStorage.setItem(ENABLE_KEY, String(enabled)));
 }
 
 type LearnedClaim = {key: string; text: string};
@@ -149,7 +150,7 @@ export async function autoLearningEnabled(): Promise<boolean> {
   return (await AsyncStorage.getItem(KEY + '/auto')) === 'true';
 }
 export async function setAutoLearningEnabled(enabled: boolean): Promise<void> {
-  await AsyncStorage.setItem(KEY + '/auto', String(enabled));
+  await mutate(() => AsyncStorage.setItem(KEY + '/auto', String(enabled)));
 }
 
 export function learnFeedback(input: string): Promise<void> {

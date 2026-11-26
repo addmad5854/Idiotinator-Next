@@ -1,4 +1,5 @@
 import {initLlama} from 'llama.rn';
+import {resolveUseMmap} from '../../utils/memorySettings';
 import {getCpuCoreCount, getThermalStatus} from '../../utils/deviceCapabilities';
 import {DiagnosticsCard} from './DiagnosticsCard';
 import {View, ScrollView} from 'react-native';
@@ -240,7 +241,8 @@ export const BenchmarkScreen: React.FC = observer(() => {
       for (const threads of candidates) {
         const heat = await getThermalStatus();
         if (heat !== undefined && heat >= 2) throw new Error('Device too warm; retry after cooling.');
-        const ctx = await initLlama({...settings, model: path, devices: ['CPU'], n_gpu_layers: 0, n_threads: threads});
+        const useMmap = settings.use_mmap === 'smart' ? await resolveUseMmap('smart', path) : settings.use_mmap === 'true';
+        const ctx = await initLlama({...settings, use_mmap: useMmap, model: path, devices: ['CPU'], n_gpu_layers: 0, n_threads: threads});
         try {
           const result = await ctx.bench(Math.min(128, settings.n_ubatch), 32, 1, 2);
           if (Number.isFinite(result.speedTg) && result.speedTg > 0) rows.push({threads, speed: result.speedTg});

@@ -167,6 +167,12 @@ android {
         unitTests.includeAndroidResources = true
         unitTests.all {
             systemProperty "robolectric.conscryptMode", "OFF"
+            testLogging {
+                events "failed", "skipped"
+                exceptionFormat "full"
+                showCauses true
+                showStackTraces true
+            }
         }
     }
 
@@ -263,7 +269,10 @@ configurations.matching {
 }
 
 // react-native-tcp-socket needs BouncyCastle only for TLS servers; the local API server is plain TCP.
-configurations.matching { it.name.endsWith('RuntimeClasspath') }.configureEach {
+// Keep Robolectric runtime dependencies available to JVM unit tests.
+configurations.matching {
+    it.name.endsWith('RuntimeClasspath') && !it.name.toLowerCase(java.util.Locale.ROOT).contains('unittest')
+}.configureEach {
     exclude group: 'org.bouncycastle'
 }
 

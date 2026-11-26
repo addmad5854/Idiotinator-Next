@@ -7,7 +7,7 @@ export type MemoryEntry = {id: string; text: string; source: 'user'; createdAt: 
 const KEY = '@idiotinator/adaptive-memory/v1';
 // Keep each AsyncStorage value below Android's typical per-row read limit.
 const MAX_SERIALIZED_BYTES = 1500000;
-export function serializeEntries(entries: MemoryEntry[]): string {
+function serializeEntries(entries: MemoryEntry[]): string {
   const raw = JSON.stringify(entries);
   // Three bytes per UTF-16 code unit is a conservative UTF-8 upper bound.
   if (raw.length * 3 > MAX_SERIALIZED_BYTES) throw new Error('Memory storage budget reached. Export or delete older memories.');
@@ -116,7 +116,7 @@ export function updateMemory(id: string, text: string): Promise<void> {
 }
 
 export async function exportMemories(): Promise<string> {
-  return JSON.stringify({schema: 1, entries: await listMemories()}, null, 2);
+  return JSON.stringify({schema: 1, entries: JSON.parse(serializeEntries(await listMemories()))}, null, 2);
 }
 
 export function restoreMemories(raw: string): Promise<void> {

@@ -1,1 +1,3 @@
 Authorized v0.1.11 rebuild after verified delimiter source repair
+
+2026-11-26: User authorized dual-architecture verification build.

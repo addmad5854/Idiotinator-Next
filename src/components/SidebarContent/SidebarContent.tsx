@@ -8,7 +8,6 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {useTheme} from '../../hooks';
 import {createStyles} from './styles';
-import {PlusDrawerItem} from './PlusDrawerItem/PlusDrawerItem';
 import {chatSessionStore, SessionMetaData} from '../../store';
 import {Menu, RenameModal, Checkbox} from '..';
 import {
@@ -27,7 +26,6 @@ import {L10nContext} from '../../utils';
 import {t} from '../../locales';
 import {ROUTES} from '../../utils/navigationConstants';
 import {exportChatSession} from '../../utils/exportUtils';
-import {openPlus} from '../../services/plus/gate';
 
 // Check if app is in debug mode
 const isDebugMode = __DEV__;
@@ -547,6 +545,10 @@ export const SidebarContent: React.FC<DrawerContentComponentProps> = observer(
     const ListHeaderComponent = React.useMemo(
       () => (
         <View>
+          <View style={{paddingHorizontal: 20, paddingVertical: 18}}>
+            <Text variant="headlineSmall" style={{fontWeight: '700'}}>Idiotinator</Text>
+            <Text variant="bodySmall" style={{color: theme.colors.textSecondary}}>Local intelligence · Your device</Text>
+          </View>
           <Drawer.Section showDivider={false}>
             <Drawer.Item
               label={l10n.components.sidebarContent.menuItems.chat}
@@ -556,7 +558,7 @@ export const SidebarContent: React.FC<DrawerContentComponentProps> = observer(
               testID="drawer-item-chat"
             />
             <Drawer.Item
-              label={l10n.components.sidebarContent.menuItems.pals}
+              label="Personas"
               icon={() => <PalIcon stroke={theme.colors.primary} />}
               onPress={() => navigateTo(ROUTES.PALS)}
               style={styles.menuDrawerItem}
@@ -570,7 +572,7 @@ export const SidebarContent: React.FC<DrawerContentComponentProps> = observer(
               testID="drawer-item-models"
             />
             <Drawer.Item
-              label={l10n.components.sidebarContent.menuItems.benchmark}
+              label="Performance"
               icon={() => <BenchmarkIcon stroke={theme.colors.primary} />}
               onPress={() => navigateTo(ROUTES.BENCHMARK)}
               style={styles.menuDrawerItem}
@@ -588,12 +590,6 @@ export const SidebarContent: React.FC<DrawerContentComponentProps> = observer(
               onPress={() => navigateTo(ROUTES.SETTINGS)}
               style={styles.menuDrawerItem}
               testID="drawer-item-settings"
-            />
-            <PlusDrawerItem
-              onPress={() => {
-                props.navigation.closeDrawer();
-                openPlus();
-              }}
             />
             <Drawer.Item
               label={l10n.components.sidebarContent.menuItems.appInfo}

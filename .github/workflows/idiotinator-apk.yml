@@ -68,6 +68,14 @@ jobs:
       - name: Set up Gradle build cache
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Restore Gradle task cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/caches/build-cache-1
+          key: ${{ runner.os }}-idiotinator-gradle-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-idiotinator-gradle-
+
       - name: Create dummy google-services.json for CI
         run: |
           cat > android/app/google-services.json << 'EOL'

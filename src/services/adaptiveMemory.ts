@@ -152,7 +152,7 @@ type LearnedClaim = {key: string; text: string};
 export function extractUserClaim(input: string): LearnedClaim | null {
   const text = input.trim().replace(/^(?:actually|correction)\s*[:,]?\s*/i, '');
   if (text.length > 240 || /[?\n]|(?:password|secret|token|pin code|credit card)/i.test(text)) return null;
-  const match = /^(?:my (preferred language|preferred units|preferred editor|preferred programming language|preferred response style|preferred name) is|i (prefer)) ([^.!?]+)[.!]?$/i.exec(text);
+  const match = /^(?:my (preferred language|preferred units|preferred editor|preferred programming language|preferred response style|preferred name|[a-z][a-z ]{1,45}) is|i (prefer)) ([^.!?]+)[.!]?$/i.exec(text);
   if (!match) return null;
   const value = match[3].trim();
   if (!value || /(?:\b(?:if|unless|sometimes|might|would|maybe|not)\b)/i.test(value)) return null;

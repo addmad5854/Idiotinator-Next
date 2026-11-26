@@ -18,3 +18,6 @@ Freeze feature expansion. Compare inherited behavior against pinned upstream, no
 | Build | Typecheck, tests, dual ABI, metadata, payload, emulator | Passed at above revision |
 
 Do not label stable until required gates pass. Physical GPU/NPU, microphone and thermal behavior require device testing. No public release until approved.
+
+## Upstream reuse policy
+Retain upstream layouts, navigation, voice, vision and model lifecycle. Keep branding and theme tokens separate; do not restore cloud account or purchase requirements. Add intelligence extensions without redesigning shared components. Defer navigation redesign until stable release gates pass.

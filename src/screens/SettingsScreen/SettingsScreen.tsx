@@ -103,7 +103,6 @@ export const SettingsScreen: React.FC = observer(() => {
   const theme = useTheme();
   const styles = createStyles(theme);
   const isFocused = useIsFocused();
-  const [section, setSection] = useState('Hardware');
   const [contextSize, setContextSize] = useState(
     modelStore.contextInitParams.n_ctx.toString(),
   );
@@ -355,10 +354,8 @@ export const SettingsScreen: React.FC = observer(() => {
         <ScrollView
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled">
-          <Text variant="headlineMedium">Control center</Text>
-          <View style={{flexDirection: "row", flexWrap: "wrap", gap: 8, marginVertical: 12}}>{["Hardware","Voice & appearance","Connectivity","Storage","Memory"].map(s => <Button key={s} mode={section === s ? "contained" : "outlined"} onPress={() => setSection(s)}>{s}</Button>)}</View>
           {/* Model Initialization Settings */}
-          {section === 'Hardware' && (<Card elevation={0} style={styles.card}>
+          <Card elevation={0} style={styles.card}>
             <Card.Title title={l10n.settings.modelInitializationSettings} />
             <Card.Content>
               {/* Device Selection */}
@@ -912,10 +909,10 @@ export const SettingsScreen: React.FC = observer(() => {
                 </View>
               </List.Accordion>
             </Card.Content>
-          </Card> )}
+          </Card>
 
           {/* Memory Settings */}
-          {section === 'Hardware' && (<Card elevation={0} style={styles.card}>
+          <Card elevation={0} style={styles.card}>
             <Card.Title title={l10n.settings.memorySettings} />
             <Card.Content>
               <View style={styles.settingItemContainer}>
@@ -993,10 +990,10 @@ export const SettingsScreen: React.FC = observer(() => {
                 {l10n.settings.modelReloadNotice}
               </Text>
             </Card.Content>
-          </Card> )}
+          </Card>
 
           {/* Model Loading Settings */}
-          {section === 'Hardware' && (<Card elevation={0} style={styles.card}>
+          <Card elevation={0} style={styles.card}>
             <Card.Title title={l10n.settings.modelLoadingSettings} />
             <Card.Content>
               <View style={styles.settingItemContainer}>
@@ -1040,10 +1037,10 @@ export const SettingsScreen: React.FC = observer(() => {
                 </View>
               </View>
             </Card.Content>
-          </Card> )}
+          </Card>
 
           {/* UI Settings */}
-          {section === 'Voice & appearance' && (<Card elevation={0} style={styles.card}>
+          <Card elevation={0} style={styles.card}>
             <Card.Title title={l10n.settings.appSettings} />
             <Card.Content>
               <View style={styles.settingItemContainer}>
@@ -1357,10 +1354,10 @@ export const SettingsScreen: React.FC = observer(() => {
                 )}
               </View>
             </Card.Content>
-          </Card> )}
+          </Card>
 
           {/* Internet Search */}
-          {section === 'Connectivity' && (<Card elevation={0} style={styles.card} testID="internet-search-card">
+          <Card elevation={0} style={styles.card} testID="internet-search-card">
             <Card.Title title={l10n.settings.internetSearch.title} />
             <Card.Content>
               <View style={styles.settingItemContainer}>
@@ -1528,10 +1525,10 @@ export const SettingsScreen: React.FC = observer(() => {
                 </View>
               </View>
             </Card.Content>
-          </Card> )}
+          </Card>
 
           {/* API Settings */}
-          {section === 'Connectivity' && (<Card elevation={0} style={styles.card}>
+          <Card elevation={0} style={styles.card}>
             <Card.Title title={l10n.settings.apiSettingsTitle} />
             <Card.Content>
               <View style={styles.settingItemContainer}>
@@ -1577,10 +1574,10 @@ export const SettingsScreen: React.FC = observer(() => {
                 </View>
               </View>
             </Card.Content>
-          </Card> )}
+          </Card>
 
           {/* Cache & Storage Settings - iOS only (for Shortcuts) */}
-          {section === 'Storage' && Platform.OS === 'ios' && (
+          {Platform.OS === 'ios' && (
             <Card elevation={0} style={styles.card}>
               <Card.Title title={l10n.settings.cacheStorageTitle} />
               <Card.Content>
@@ -1675,11 +1672,11 @@ export const SettingsScreen: React.FC = observer(() => {
           )}
 
 
-          {section === 'Connectivity' && <LocalApiServerCard />}
-          {section === 'Memory' && <MemoryCard />}
+          <LocalApiServerCard />
+          <MemoryCard />
 
           {/* Export Options */}
-          {section === 'Storage' && (<Card elevation={0} style={styles.card}>
+          <Card elevation={0} style={styles.card}>
             <Card.Title title={l10n.settings.exportOptions} />
             <Card.Content>
               <View style={styles.settingItemContainer}>
@@ -1719,7 +1716,7 @@ export const SettingsScreen: React.FC = observer(() => {
                 </View>
               </View>
             </Card.Content>
-          </Card> )}
+          </Card>
         </ScrollView>
       </TouchableWithoutFeedback>
       <HFTokenSheet

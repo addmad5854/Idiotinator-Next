@@ -1,4 +1,5 @@
-import React from 'react';
+import React, {useContext} from 'react';
+import {L10nContext} from '../../utils';
 import {View} from 'react-native';
 import {observer} from 'mobx-react';
 import {Text} from 'react-native-paper';
@@ -13,10 +14,11 @@ export const ChatHeaderTitle: React.FC = observer(() => {
   );
   const activeModel = modelStore.activeModel;
 
+  const l10n = useContext(L10nContext);
   return (
     <View style={styles.container}>
       <Text numberOfLines={1} variant="titleSmall">
-        {activeSession?.title || 'Idiotinator'}
+        {activeSession?.title || l10n.components.chatHeaderTitle.defaultTitle}
       </Text>
       {activeModel?.name && (
         <Text numberOfLines={1} variant="bodySmall">

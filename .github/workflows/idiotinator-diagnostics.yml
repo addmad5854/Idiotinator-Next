@@ -12,7 +12,7 @@ permissions:
 jobs:
   startup:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -21,19 +21,28 @@ jobs:
           run-id: ${{ inputs.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: android/app/build/outputs/apk/prod/release
-      - name: Enable KVM
+      - name: Detect KVM availability
+        id: accel
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-          test -r /dev/kvm && test -w /dev/kvm
+          sudo udevadm settle || true
+          if [ -e /dev/kvm ]; then sudo chmod a+rw /dev/kvm || true; fi
+          if [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
+            echo 'mode=on' >> "$GITHUB_OUTPUT"
+          else
+            echo 'mode=off' >> "$GITHUB_OUTPUT"
+            echo 'KVM unavailable; using software emulation'
+          fi
       - name: Launch existing APK and collect logs
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
           arch: x86_64
           target: google_apis
-          emulator-boot-timeout: 600
+          emulator-boot-timeout: 1500
+          disable-linux-hw-accel: ${{ steps.accel.outputs.mode == 'off' }}
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: bash scripts/idiotinator-smoke.sh
       - name: Upload diagnostics

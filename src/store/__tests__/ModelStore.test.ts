@@ -215,7 +215,7 @@ describe('ModelStore', () => {
         await modelStore.initContext(basicModel);
         expect(nativeInit).toHaveBeenCalledTimes(1);
         expect(nativeInit.mock.calls[0][0]).toMatchObject({
-          devices: ['HTP2'],
+          devices: [devices.includes('HTP0') ? 'HTP0' : 'HTP2'],
           n_gpu_layers: 37,
           flash_attn_type: 'on',
           cache_type_k: CacheType.Q8_0,

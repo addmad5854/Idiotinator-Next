@@ -87,8 +87,18 @@ export const ChatEmptyPlaceholder = observer(
         style={[styles.container, {marginBottom: bottomComponentHeight + 100}]}>
         <Svg width={112} height={112} viewBox="0 0 112 112">
           <Rect width={112} height={112} rx={30} fill="#10171B" />
-          <Path d="M56 14 L92 35 L92 77 L56 98 L20 77 L20 35 Z" stroke="#78DCC8" strokeWidth={4} fill="none" />
-          <Path d="M43 36 H69 M56 36 V76 M43 76 H69" stroke="#78DCC8" strokeWidth={6} strokeLinecap="round" />
+          <Path
+            d="M56 14 L92 35 L92 77 L56 98 L20 77 L20 35 Z"
+            stroke="#78DCC8"
+            strokeWidth={4}
+            fill="none"
+          />
+          <Path
+            d="M43 36 H69 M56 36 V76 M43 76 H69"
+            stroke="#78DCC8"
+            strokeWidth={6}
+            strokeLinecap="round"
+          />
         </Svg>
         <View>
           <Text style={styles.title}>{title}</Text>

@@ -675,7 +675,11 @@ class ModelStore {
     );
 
     // CPU resolution must also prevent accelerator offload of a paired draft.
-    if (Platform.OS === 'android' && params.devices?.length === 1 && params.devices[0] === 'CPU') {
+    if (
+      Platform.OS === 'android' &&
+      params.devices?.length === 1 &&
+      params.devices[0] === 'CPU'
+    ) {
       params.no_gpu_devices = true;
       if (params.spec_draft_n_gpu_layers !== undefined) {
         params.spec_draft_n_gpu_layers = 0;
@@ -2602,7 +2606,10 @@ class ModelStore {
         try {
           await initializingContext.release();
         } catch (cleanupError) {
-          console.warn('[ModelStore] Failed to release incomplete context:', cleanupError);
+          console.warn(
+            '[ModelStore] Failed to release incomplete context:',
+            cleanupError,
+          );
         }
       }
       console.error(

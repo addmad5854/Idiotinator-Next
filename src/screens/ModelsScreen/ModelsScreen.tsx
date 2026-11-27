@@ -7,7 +7,14 @@ import 'react-native-get-random-values';
 import {observer} from 'mobx-react-lite';
 import * as RNFS from '@dr.pogodin/react-native-fs';
 import {pick, types} from '@react-native-documents/picker';
-import {Portal, Snackbar, Text, Button, Dialog, TextInput} from 'react-native-paper';
+import {
+  Portal,
+  Snackbar,
+  Text,
+  Button,
+  Dialog,
+  TextInput,
+} from 'react-native-paper';
 
 import {parseHFDownloadLink} from '../../utils/hfDownloadLink';
 import {resolveHFModelForDownload} from '../../utils/hfResolve';
@@ -115,12 +122,21 @@ export const ModelsScreen: React.FC = observer(() => {
     setLinkBusy(true);
     try {
       const {repoId, filename} = parseHFDownloadLink(downloadLink);
-      const {hfModel, modelFile} = await resolveHFModelForDownload(repoId, filename, hfStore.shouldUseToken ? hfStore.hfToken : null);
-      await modelStore.downloadHFModel(hfModel, modelFile, {enableVision: false});
+      const {hfModel, modelFile} = await resolveHFModelForDownload(
+        repoId,
+        filename,
+        hfStore.shouldUseToken ? hfStore.hfToken : null,
+      );
+      await modelStore.downloadHFModel(hfModel, modelFile, {
+        enableVision: false,
+      });
       setLinkVisible(false);
       setDownloadLink('');
     } catch (error) {
-      Alert.alert('Cannot download link', error instanceof Error ? error.message : 'Download setup failed');
+      Alert.alert(
+        'Cannot download link',
+        error instanceof Error ? error.message : 'Download setup failed',
+      );
     } finally {
       setLinkBusy(false);
     }
@@ -424,8 +440,28 @@ export const ModelsScreen: React.FC = observer(() => {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.listContainer}
         data={flatListModels}
-        ListHeaderComponent={<View style={{padding: 16, gap: 8}}><Text variant="headlineMedium">Model library</Text><Text>{models.filter(m => m.isDownloaded).length} downloaded · {models.length} available</Text><Button mode="outlined" onPress={() => setHFSearchVisible(true)}>Find models</Button><Button onPress={handleAddLocalModel}>Import GGUF</Button><Button onPress={() => setLinkVisible(true)}>Download GGUF link</Button></View>}
-        ListEmptyComponent={<View style={{padding: 24}}><Text>No models visible. Refresh or import a GGUF file.</Text><Button onPress={onRefresh}>Refresh library</Button></View>}
+        ListHeaderComponent={
+          <View style={{padding: 16, gap: 8}}>
+            <Text variant="headlineMedium">Model library</Text>
+            <Text>
+              {models.filter(m => m.isDownloaded).length} downloaded ·{' '}
+              {models.length} available
+            </Text>
+            <Button mode="outlined" onPress={() => setHFSearchVisible(true)}>
+              Find models
+            </Button>
+            <Button onPress={handleAddLocalModel}>Import GGUF</Button>
+            <Button onPress={() => setLinkVisible(true)}>
+              Download GGUF link
+            </Button>
+          </View>
+        }
+        ListEmptyComponent={
+          <View style={{padding: 24}}>
+            <Text>No models visible. Refresh or import a GGUF file.</Text>
+            <Button onPress={onRefresh}>Refresh library</Button>
+          </View>
+        }
         keyExtractor={item => item.type}
         extraData={activeModelId}
         renderItem={renderGroupHeader}
@@ -458,15 +494,34 @@ export const ModelsScreen: React.FC = observer(() => {
       </Portal>
 
       <Portal>
-        <Dialog visible={linkVisible} onDismiss={() => {if (!linkBusy) setLinkVisible(false);}}>
+        <Dialog
+          visible={linkVisible}
+          onDismiss={() => {
+            if (!linkBusy) setLinkVisible(false);
+          }}>
           <Dialog.Title>Download GGUF link</Dialog.Title>
           <Dialog.Content>
-            <Text>Paste a Hugging Face GGUF file link from the main branch.</Text>
-            <TextInput value={downloadLink} onChangeText={setDownloadLink} autoCapitalize="none" autoCorrect={false} disabled={linkBusy} />
+            <Text>
+              Paste a Hugging Face GGUF file link from the main branch.
+            </Text>
+            <TextInput
+              value={downloadLink}
+              onChangeText={setDownloadLink}
+              autoCapitalize="none"
+              autoCorrect={false}
+              disabled={linkBusy}
+            />
           </Dialog.Content>
           <Dialog.Actions>
-            <Button disabled={linkBusy} onPress={() => setLinkVisible(false)}>Cancel</Button>
-            <Button loading={linkBusy} disabled={linkBusy || !downloadLink.trim()} onPress={downloadFromLink}>Download</Button>
+            <Button disabled={linkBusy} onPress={() => setLinkVisible(false)}>
+              Cancel
+            </Button>
+            <Button
+              loading={linkBusy}
+              disabled={linkBusy || !downloadLink.trim()}
+              onPress={downloadFromLink}>
+              Download
+            </Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>

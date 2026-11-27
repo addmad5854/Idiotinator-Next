@@ -119,5 +119,7 @@ export async function getHexagonInfo(chipset?: string): Promise<HexagonInfo[]> {
  */
 export async function hasSupportedHexagon(): Promise<boolean> {
   const devices = await getAvailableDevices();
-  return devices.some(d => d.deviceName?.startsWith('HTP') && !/[*?]/.test(d.deviceName));
+  return devices.some(
+    d => d.deviceName?.startsWith('HTP') && !/[*?]/.test(d.deviceName),
+  );
 }

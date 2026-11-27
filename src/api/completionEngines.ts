@@ -26,57 +26,64 @@ export class LocalCompletionEngine implements CompletionEngine {
     const thermal = getThermalStatus;
     const initial = await thermal();
     if (initial !== undefined && initial >= 3) {
-      throw new Error('Device is too hot for local inference. Allow it to cool and retry.');
+      throw new Error(
+        'Device is too hot for local inference. Allow it to cool and retry.',
+      );
     }
     let finished = false;
     let checking = false;
     let stoppedForHeat = false;
-    const monitor = Platform.OS === 'android' ? setInterval(async () => {
-      if (finished || checking || stoppedForHeat) return;
-      checking = true;
-      try {
-        const status = await thermal();
-        if (!finished && status !== undefined && status >= 3) {
-          await this.context.stopCompletion();
-          stoppedForHeat = true;
-        }
-      } catch {
-        // Monitoring failure must not crash inference.
-      } finally { checking = false; }
-    }, 5000) : undefined;
+    const monitor =
+      Platform.OS === 'android'
+        ? setInterval(async () => {
+            if (finished || checking || stoppedForHeat) return;
+            checking = true;
+            try {
+              const status = await thermal();
+              if (!finished && status !== undefined && status >= 3) {
+                await this.context.stopCompletion();
+                stoppedForHeat = true;
+              }
+            } catch {
+              // Monitoring failure must not crash inference.
+            } finally {
+              checking = false;
+            }
+          }, 5000)
+        : undefined;
     try {
-    const result = await this.context.completion(
-      params,
-      callback
-        ? data => {
-            callback({
-              token: data.token,
-              content: data.content,
-              reasoning_content: data.reasoning_content,
-              tool_calls: data.tool_calls,
-              accumulated_text: data.accumulated_text,
-            });
-          }
-        : undefined,
-    );
-    return {
-      text: result.text,
-      content: result.content,
-      reasoning_content: result.reasoning_content,
-      tool_calls: result.tool_calls,
-      timings: normaliseTimings(result.timings),
-      tokens_predicted: result.tokens_predicted,
-      tokens_evaluated: result.tokens_evaluated,
-      draft_tokens: result.draft_tokens,
-      draft_tokens_accepted: result.draft_tokens_accepted,
-      truncated: result.truncated,
-      stopped_eos: result.stopped_eos,
-      stopped_limit: result.stopped_limit,
-      stopped_word: result.stopped_word,
-      stopping_word: result.stopping_word,
-      context_full: result.context_full,
-      interrupted: result.interrupted || stoppedForHeat,
-    };
+      const result = await this.context.completion(
+        params,
+        callback
+          ? data => {
+              callback({
+                token: data.token,
+                content: data.content,
+                reasoning_content: data.reasoning_content,
+                tool_calls: data.tool_calls,
+                accumulated_text: data.accumulated_text,
+              });
+            }
+          : undefined,
+      );
+      return {
+        text: result.text,
+        content: result.content,
+        reasoning_content: result.reasoning_content,
+        tool_calls: result.tool_calls,
+        timings: normaliseTimings(result.timings),
+        tokens_predicted: result.tokens_predicted,
+        tokens_evaluated: result.tokens_evaluated,
+        draft_tokens: result.draft_tokens,
+        draft_tokens_accepted: result.draft_tokens_accepted,
+        truncated: result.truncated,
+        stopped_eos: result.stopped_eos,
+        stopped_limit: result.stopped_limit,
+        stopped_word: result.stopped_word,
+        stopping_word: result.stopping_word,
+        context_full: result.context_full,
+        interrupted: result.interrupted || stoppedForHeat,
+      };
     } finally {
       finished = true;
       if (monitor !== undefined) clearInterval(monitor);

@@ -1,16 +1,33 @@
-import {readMemoryRows, writeMemoryRows, searchMemoryRows, pageMemoryRows} from './memoryDatabase';
+import {
+  readMemoryRows,
+  writeMemoryRows,
+  searchMemoryRows,
+  pageMemoryRows,
+} from './memoryDatabase';
 import {isSensitiveMemory} from './memoryPrivacy';
-import {extractFeedback, confidence, type LearningEvidence} from './learningEvidence';
+import {
+  extractFeedback,
+  confidence,
+  type LearningEvidence,
+} from './learningEvidence';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type MemoryEntry = {id: string; text: string; source: 'user'; createdAt: number; evidence?: LearningEvidence; disputed?: boolean};
+export type MemoryEntry = {
+  id: string;
+  text: string;
+  source: 'user';
+  createdAt: number;
+  evidence?: LearningEvidence;
+  disputed?: boolean;
+};
 const KEY = '@idiotinator/adaptive-memory/v1';
 // Keep each AsyncStorage value below Android's typical per-row read limit.
 const MAX_SERIALIZED_BYTES = 16000000;
 function serializeEntries(entries: MemoryEntry[]): string {
   const raw = JSON.stringify(entries);
   // Three bytes per UTF-16 code unit is a conservative UTF-8 upper bound.
-  if (raw.length * 3 > MAX_SERIALIZED_BYTES) throw new Error('Backup exceeds the supported export size.');
+  if (raw.length * 3 > MAX_SERIALIZED_BYTES)
+    throw new Error('Backup exceeds the supported export size.');
   return raw;
 }
 let queue: Promise<unknown> = Promise.resolve();
@@ -23,7 +40,17 @@ async function readLegacyEntries(): Promise<MemoryEntry[]> {
   const raw = await AsyncStorage.getItem(KEY);
   if (!raw) return [];
   const parsed: unknown = JSON.parse(raw);
-  if (!Array.isArray(parsed) || !parsed.every(e => e && typeof e.id === 'string' && typeof e.text === 'string' && e.source === 'user' && typeof e.createdAt === 'number')) {
+  if (
+    !Array.isArray(parsed) ||
+    !parsed.every(
+      e =>
+        e &&
+        typeof e.id === 'string' &&
+        typeof e.text === 'string' &&
+        e.source === 'user' &&
+        typeof e.createdAt === 'number',
+    )
+  ) {
     throw new Error('Invalid memory store');
   }
   return parsed;
@@ -34,12 +61,15 @@ async function ensureMigrated(): Promise<void> {
   if (!migrated) {
     const marker = await AsyncStorage.getItem(KEY + '/sqlite-index-v10');
     if (marker !== 'true') {
-      const old = (await AsyncStorage.getItem(KEY + '/sqlite')) === 'true' ? [] : await readLegacyEntries();
+      const old =
+        (await AsyncStorage.getItem(KEY + '/sqlite')) === 'true'
+          ? []
+          : await readLegacyEntries();
       const rows = await readMemoryRows();
-      const merged = new Map(old.map(e=>[e.id,e]));
-      for (const row of rows) merged.set(row.id,row);
+      const merged = new Map(old.map(e => [e.id, e]));
+      for (const row of rows) merged.set(row.id, row);
       await writeMemoryRows([...merged.values()]);
-      await AsyncStorage.setItem(KEY + '/sqlite','true');
+      await AsyncStorage.setItem(KEY + '/sqlite', 'true');
     }
     await AsyncStorage.removeItem(KEY);
     migrated = true;
@@ -49,9 +79,20 @@ async function readEntries(): Promise<MemoryEntry[]> {
   await ensureMigrated();
   return readMemoryRows();
 }
-export function listMemoryPage(query:string,page:number){return mutate(async()=>{await ensureMigrated();return pageMemoryRows(query,page);});}
-export function findRelevantMemories(query:string): Promise<MemoryEntry[]> {
-  return mutate(async()=>{await ensureMigrated(); return retrieveMemories(await searchMemoryRows([...keywords(query)]),query);});
+export function listMemoryPage(query: string, page: number) {
+  return mutate(async () => {
+    await ensureMigrated();
+    return pageMemoryRows(query, page);
+  });
+}
+export function findRelevantMemories(query: string): Promise<MemoryEntry[]> {
+  return mutate(async () => {
+    await ensureMigrated();
+    return retrieveMemories(
+      await searchMemoryRows([...keywords(query)]),
+      query,
+    );
+  });
 }
 async function persistEntries(entries: MemoryEntry[]): Promise<void> {
   await ensureMigrated();
@@ -73,12 +114,24 @@ export function rememberExplicit(text: string): Promise<void> {
     const clean = normalizeMemory(text);
     if (!clean || isSensitiveMemory(clean)) return;
     const entries = await readEntries();
-    const existing = entries.find(e => e.text.toLowerCase() === clean.toLowerCase());
+    const existing = entries.find(
+      e => e.text.toLowerCase() === clean.toLowerCase(),
+    );
     if (existing) {
-      if (existing.evidence?.kind === 'model_candidate') await persistEntries(entries.map(e=>e.id===existing.id ? {...e,evidence:undefined} : e));
+      if (existing.evidence?.kind === 'model_candidate')
+        await persistEntries(
+          entries.map(e =>
+            e.id === existing.id ? {...e, evidence: undefined} : e,
+          ),
+        );
       return;
     }
-    entries.push({id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2), text: clean, source: 'user', createdAt: Date.now()});
+    entries.push({
+      id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2),
+      text: clean,
+      source: 'user',
+      createdAt: Date.now(),
+    });
     await persistEntries(entries);
   });
 }
@@ -94,21 +147,84 @@ export function explicitMemoryRequest(text: string): string | null {
   return match ? normalizeMemory(match[1]) || null : null;
 }
 
-const STOP_WORDS = new Set(['the','and','that','this','with','what','when','where','how','can','you','your','remember','about','for','are','was','have','from','tell','please']);
+const STOP_WORDS = new Set([
+  'the',
+  'and',
+  'that',
+  'this',
+  'with',
+  'what',
+  'when',
+  'where',
+  'how',
+  'can',
+  'you',
+  'your',
+  'remember',
+  'about',
+  'for',
+  'are',
+  'was',
+  'have',
+  'from',
+  'tell',
+  'please',
+]);
 function keywords(text: string): Set<string> {
-  return new Set((text.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) || []).filter(w => !STOP_WORDS.has(w)));
+  return new Set(
+    (text.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) || []).filter(
+      w => !STOP_WORDS.has(w),
+    ),
+  );
 }
-export function retrieveMemories(entries: MemoryEntry[], query: string, charBudget = 1200): MemoryEntry[] {
+export function retrieveMemories(
+  entries: MemoryEntry[],
+  query: string,
+  charBudget = 1200,
+): MemoryEntry[] {
   const words = keywords(query);
-  const ranked = entries.filter(entry => !entry.disputed && (!entry.evidence || ['user_statement', 'user_correction', 'user_confirmed_success'].includes(entry.evidence.kind))).map(entry => {
-    const terms = keywords(entry.text);
-    const overlap = [...terms].filter(w => words.has(w)).length;
-    return {entry, score: overlap / Math.sqrt(Math.max(1, terms.size)) * confidence({key: entry.id, claim: entry.text, disputed: false, evidence: [entry.evidence ?? {kind: 'user_statement', text: entry.text, recordedAt: entry.createdAt}]})};
-  }).filter(x => x.score > 0).sort((a,b) => b.score - a.score || b.entry.createdAt - a.entry.createdAt);
+  const ranked = entries
+    .filter(
+      entry =>
+        !entry.disputed &&
+        (!entry.evidence ||
+          [
+            'user_statement',
+            'user_correction',
+            'user_confirmed_success',
+          ].includes(entry.evidence.kind)),
+    )
+    .map(entry => {
+      const terms = keywords(entry.text);
+      const overlap = [...terms].filter(w => words.has(w)).length;
+      return {
+        entry,
+        score:
+          (overlap / Math.sqrt(Math.max(1, terms.size))) *
+          confidence({
+            key: entry.id,
+            claim: entry.text,
+            disputed: false,
+            evidence: [
+              entry.evidence ?? {
+                kind: 'user_statement',
+                text: entry.text,
+                recordedAt: entry.createdAt,
+              },
+            ],
+          }),
+      };
+    })
+    .filter(x => x.score > 0)
+    .sort((a, b) => b.score - a.score || b.entry.createdAt - a.entry.createdAt);
   const result: MemoryEntry[] = [];
   let remaining = Math.max(0, charBudget);
   for (const {entry} of ranked) {
-    const cost = JSON.stringify({text: entry.text, source: entry.evidence?.kind ?? 'user_statement'}).length + 2;
+    const cost =
+      JSON.stringify({
+        text: entry.text,
+        source: entry.evidence?.kind ?? 'user_statement',
+      }).length + 2;
     if (cost > remaining) continue;
     result.push(entry);
     remaining -= cost;
@@ -120,29 +236,85 @@ export function retrieveMemories(entries: MemoryEntry[], query: string, charBudg
 export function updateMemory(id: string, text: string): Promise<void> {
   return mutate(async () => {
     const clean = normalizeMemory(text);
-    if (!clean || isSensitiveMemory(clean)) throw new Error('Memory is empty or contains sensitive information');
+    if (!clean || isSensitiveMemory(clean))
+      throw new Error('Memory is empty or contains sensitive information');
     const entries = await readEntries();
     if (!entries.some(e => e.id === id)) throw new Error('Memory not found');
-    await persistEntries(entries.map(e => e.id === id ? {...e, text: clean, evidence: undefined, disputed:false} : e));
+    await persistEntries(
+      entries.map(e =>
+        e.id === id
+          ? {...e, text: clean, evidence: undefined, disputed: false}
+          : e,
+      ),
+    );
   });
 }
 
 export async function exportMemories(): Promise<string> {
-  return JSON.stringify({schema: 1, entries: JSON.parse(serializeEntries(await listMemories()))}, null, 2);
+  return JSON.stringify(
+    {schema: 1, entries: JSON.parse(serializeEntries(await listMemories()))},
+    null,
+    2,
+  );
 }
 
 export function restoreMemories(raw: string): Promise<void> {
   return mutate(async () => {
     const data = JSON.parse(raw);
-    if (data.schema !== 1 || !Array.isArray(data.entries) || raw.length > MAX_SERIALIZED_BYTES) throw new Error('Invalid backup');
+    if (
+      data.schema !== 1 ||
+      !Array.isArray(data.entries) ||
+      raw.length > MAX_SERIALIZED_BYTES
+    )
+      throw new Error('Invalid backup');
     const ids = new Set<string>();
     const entries: MemoryEntry[] = data.entries.map((e: MemoryEntry) => {
-      if (!e || typeof e.id !== 'string' || !e.id || ids.has(e.id) || typeof e.text !== 'string' || !normalizeMemory(e.text) || e.source !== 'user' || !Number.isFinite(e.createdAt)) throw new Error('Invalid memory entry');
+      if (
+        !e ||
+        typeof e.id !== 'string' ||
+        !e.id ||
+        ids.has(e.id) ||
+        typeof e.text !== 'string' ||
+        !normalizeMemory(e.text) ||
+        e.source !== 'user' ||
+        !Number.isFinite(e.createdAt)
+      )
+        throw new Error('Invalid memory entry');
       ids.add(e.id);
       const text = normalizeMemory(e.text);
-      if (isSensitiveMemory(text)) throw new Error('Backup contains sensitive information');
-      if (e.evidence !== undefined && (!e.evidence || !['user_statement','user_correction','user_confirmed_success','model_candidate'].includes(e.evidence.kind) || typeof e.evidence.text !== 'string' || normalizeMemory(e.evidence.text) !== text || !Number.isFinite(e.evidence.recordedAt) || e.evidence.recordedAt <= 0)) throw new Error('Invalid memory evidence');
-      return {id:e.id,text,source:'user',createdAt:e.createdAt,disputed:e.disputed===true,...(e.evidence ? {evidence:{kind:e.evidence.kind,text,recordedAt:e.evidence.recordedAt}} : {})};
+      if (isSensitiveMemory(text))
+        throw new Error('Backup contains sensitive information');
+      if (
+        e.evidence !== undefined &&
+        (!e.evidence ||
+          ![
+            'user_statement',
+            'user_correction',
+            'user_confirmed_success',
+            'model_candidate',
+          ].includes(e.evidence.kind) ||
+          typeof e.evidence.text !== 'string' ||
+          normalizeMemory(e.evidence.text) !== text ||
+          !Number.isFinite(e.evidence.recordedAt) ||
+          e.evidence.recordedAt <= 0)
+      )
+        throw new Error('Invalid memory evidence');
+      return {
+        id: e.id,
+        text,
+        source: 'user',
+        createdAt: e.createdAt,
+        disputed: e.disputed === true,
+        ...(e.evidence
+          ? {
+              evidence: {
+                kind: e.evidence.kind,
+                text,
+                recordedAt: e.evidence.recordedAt,
+              },
+            }
+          : {}),
+      };
     });
     await persistEntries(entries);
   });
@@ -159,25 +331,56 @@ export async function setMemoryEnabled(enabled: boolean): Promise<void> {
 type LearnedClaim = {key: string; text: string};
 export function extractUserClaim(input: string): LearnedClaim | null {
   const text = input.trim().replace(/^(?:actually|correction)\s*[:,]?\s*/i, '');
-  if (text.length > 240 || /[?\n]|(?:password|secret|token|pin code|credit card)/i.test(text)) return null;
-  const match = /^(?:my (preferred language|preferred units|preferred editor|preferred programming language|preferred response style|preferred name|[a-z][a-z ]{1,45}) is|i (prefer)) ([^.!?]+)[.!]?$/i.exec(text);
+  if (
+    text.length > 240 ||
+    /[?\n]|(?:password|secret|token|pin code|credit card)/i.test(text)
+  )
+    return null;
+  const match =
+    /^(?:my (preferred language|preferred units|preferred editor|preferred programming language|preferred response style|preferred name|[a-z][a-z ]{1,45}) is|i (prefer)) ([^.!?]+)[.!]?$/i.exec(
+      text,
+    );
   if (!match) return null;
   const value = match[3].trim();
-  if (!value || /(?:\b(?:if|unless|sometimes|might|would|maybe|not)\b)/i.test(value)) return null;
-  return {key: match[1]?.toLowerCase() || 'general preference:' + value.toLowerCase(), text: match[1] ? 'My ' + match[1].toLowerCase() + ' is ' + value : 'I prefer ' + value};
+  if (
+    !value ||
+    /(?:\b(?:if|unless|sometimes|might|would|maybe|not)\b)/i.test(value)
+  )
+    return null;
+  return {
+    key: match[1]?.toLowerCase() || 'general preference:' + value.toLowerCase(),
+    text: match[1]
+      ? 'My ' + match[1].toLowerCase() + ' is ' + value
+      : 'I prefer ' + value,
+  };
 }
 
 export function learnUserClaim(input: string): Promise<void> {
   return mutate(async () => {
-    if (!(await memoryEnabled()) || (await AsyncStorage.getItem(KEY + '/auto')) !== 'true') return;
+    if (
+      !(await memoryEnabled()) ||
+      (await AsyncStorage.getItem(KEY + '/auto')) !== 'true'
+    )
+      return;
     if (isSensitiveMemory(input)) return;
     const claim = extractUserClaim(input);
     if (!claim) return;
     const entries = await readEntries();
-    const previous = entries.find(e => extractUserClaim(e.text)?.key === claim.key && e.evidence?.kind !== 'model_candidate');
+    const previous = entries.find(
+      e =>
+        extractUserClaim(e.text)?.key === claim.key &&
+        e.evidence?.kind !== 'model_candidate',
+    );
     if (previous?.text.toLowerCase() === claim.text.toLowerCase()) return;
-    const next = entries.filter(e => extractUserClaim(e.text)?.key !== claim.key);
-    next.push({id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2), text: claim.text, source: 'user', createdAt: Date.now()});
+    const next = entries.filter(
+      e => extractUserClaim(e.text)?.key !== claim.key,
+    );
+    next.push({
+      id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2),
+      text: claim.text,
+      source: 'user',
+      createdAt: Date.now(),
+    });
     await persistEntries(next);
   });
 }
@@ -196,11 +399,27 @@ export function learnFeedback(input: string): Promise<void> {
     if (!evidence) return;
     const text = normalizeMemory(evidence.text);
     const entries = await readEntries();
-    if (entries.some(e => e.text.toLowerCase() === text.toLowerCase() && e.evidence?.kind === evidence.kind)) return;
+    if (
+      entries.some(
+        e =>
+          e.text.toLowerCase() === text.toLowerCase() &&
+          e.evidence?.kind === evidence.kind,
+      )
+    )
+      return;
     // Only replace a contradiction when a supported stable preference key matches.
     const claim = extractUserClaim(text);
-    const retained = evidence.kind === 'user_correction' && claim ? entries.filter(e => extractUserClaim(e.text)?.key !== claim.key) : entries;
-    retained.push({id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2), text, source: 'user', createdAt: Date.now(), evidence: {...evidence,text}});
+    const retained =
+      evidence.kind === 'user_correction' && claim
+        ? entries.filter(e => extractUserClaim(e.text)?.key !== claim.key)
+        : entries;
+    retained.push({
+      id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2),
+      text,
+      source: 'user',
+      createdAt: Date.now(),
+      evidence: {...evidence, text},
+    });
     await persistEntries(retained);
   });
 }
@@ -214,11 +433,23 @@ export function saveKnowledgeCandidate(quote: string): Promise<void> {
     const entries = await readEntries();
     if (entries.some(e => e.text.toLowerCase() === text.toLowerCase())) return;
     const now = Date.now();
-    entries.push({id: now.toString(36) + '-' + Math.random().toString(36).slice(2), text, source: 'user', createdAt: now, evidence: {kind:'model_candidate', text, recordedAt:now}});
+    entries.push({
+      id: now.toString(36) + '-' + Math.random().toString(36).slice(2),
+      text,
+      source: 'user',
+      createdAt: now,
+      evidence: {kind: 'model_candidate', text, recordedAt: now},
+    });
     await persistEntries(entries);
   });
 }
 
-export function flagDisputedMemories(ids:string[]):Promise<void>{
- return mutate(async()=>{if(!(await memoryEnabled())||!(await autoLearningEnabled()))return;const entries=await readEntries();await persistEntries(entries.map(e=>ids.includes(e.id)?{...e,disputed:true}:e));});
+export function flagDisputedMemories(ids: string[]): Promise<void> {
+  return mutate(async () => {
+    if (!(await memoryEnabled()) || !(await autoLearningEnabled())) return;
+    const entries = await readEntries();
+    await persistEntries(
+      entries.map(e => (ids.includes(e.id) ? {...e, disputed: true} : e)),
+    );
+  });
 }

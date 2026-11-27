@@ -68,9 +68,14 @@ export async function resolveDeviceSelection(selection: {
 
   const available = await getAvailableDevices();
   const requested = snapshot.devices?.find(name => name.startsWith('HTP'));
-  const device = available.find(d => d.deviceName === requested && !/[*?]/.test(d.deviceName)) ?? selectHexagonDevice(available);
+  const device =
+    available.find(
+      d => d.deviceName === requested && !/[*?]/.test(d.deviceName),
+    ) ?? selectHexagonDevice(available);
   if (!device) {
-    console.warn('[DeviceSelection] Requested Hexagon backend unavailable; resolving to CPU with zero accelerator layers.');
+    console.warn(
+      '[DeviceSelection] Requested Hexagon backend unavailable; resolving to CPU with zero accelerator layers.',
+    );
     return {devices: ['CPU'], n_gpu_layers: 0};
   }
   return {...snapshot, devices: [device.deviceName]};
@@ -132,14 +137,22 @@ export async function getDeviceOptions(): Promise<DeviceOption[]> {
   // Android: Build options based on available devices
   const devices = await getAvailableDevices();
   const hexagonDevice = selectHexagonDevice(devices);
-  const gpuDev = devices.find(d => d.type === 'gpu' && !!d.deviceName && !d.deviceName.startsWith('HTP') && (/opencl/i.test(d.deviceName) || /opencl/i.test(d.backend ?? '')) && !/[*?]/.test(d.deviceName));
+  const gpuDev = devices.find(
+    d =>
+      d.type === 'gpu' &&
+      !!d.deviceName &&
+      !d.deviceName.startsWith('HTP') &&
+      (/opencl/i.test(d.deviceName) || /opencl/i.test(d.backend ?? '')) &&
+      !/[*?]/.test(d.deviceName),
+  );
 
   // Option 1: CPU (always available, recommended for reliability)
   // CPU supports all flash attention types
   options.push({
     id: 'cpu',
     label: 'CPU',
-    description: 'CPU only (conservative compatibility baseline; speed varies by model)',
+    description:
+      'CPU only (conservative compatibility baseline; speed varies by model)',
     devices: ['CPU'],
     n_gpu_layers: 0,
     default_flash_attn_type: 'off',
@@ -173,7 +186,8 @@ export async function getDeviceOptions(): Promise<DeviceOption[]> {
     options.push({
       id: 'hexagon',
       label: 'Hexagon',
-      description: 'Qualcomm NPU (Experimental; performance and compatibility require testing)',
+      description:
+        'Qualcomm NPU (Experimental; performance and compatibility require testing)',
       devices: [hexagonDevice.deviceName],
       n_gpu_layers: 99,
       default_flash_attn_type: 'off',
@@ -218,7 +232,9 @@ export function detectQuantizationType(filename: string): string | null {
   ];
 
   for (const pattern of quantPatterns) {
-    if (new RegExp(`(?:^|[^a-z0-9])${pattern}(?:$|[^a-z0-9])`).test(normalized)) {
+    if (
+      new RegExp(`(?:^|[^a-z0-9])${pattern}(?:$|[^a-z0-9])`).test(normalized)
+    ) {
       return pattern;
     }
   }
@@ -240,7 +256,13 @@ export function validateModelQuantizationForDevice(
 
   if (!quant) {
     // A filename is not proof of accelerator compatibility.
-    return deviceOption.id === 'cpu' ? {valid: true} : {valid: true, warning: 'Quantization could not be identified from the filename. Accelerator compatibility is unverified.'};
+    return deviceOption.id === 'cpu'
+      ? {valid: true}
+      : {
+          valid: true,
+          warning:
+            'Quantization could not be identified from the filename. Accelerator compatibility is unverified.',
+        };
   }
 
   // iOS Metal: All quantizations supported
@@ -276,7 +298,11 @@ export function validateModelQuantizationForDevice(
     }
 
     if (deviceOption.id === 'hexagon') {
-      return {valid: true, warning: 'Hexagon compatibility is unverified for this model; confirm actual offload with an inference test.'};
+      return {
+        valid: true,
+        warning:
+          'Hexagon compatibility is unverified for this model; confirm actual offload with an inference test.',
+      };
     }
     // CPU remains the conservative baseline.
   }
@@ -321,7 +347,14 @@ export async function isHexagonAvailable(): Promise<boolean> {
  */
 export async function isGpuAvailable(): Promise<boolean> {
   const devices = await getAvailableDevices();
-  return devices.some(d => d.type === 'gpu' && !!d.deviceName && !d.deviceName.startsWith('HTP') && (/opencl/i.test(d.deviceName) || /opencl/i.test(d.backend ?? '')) && !/[*?]/.test(d.deviceName));
+  return devices.some(
+    d =>
+      d.type === 'gpu' &&
+      !!d.deviceName &&
+      !d.deviceName.startsWith('HTP') &&
+      (/opencl/i.test(d.deviceName) || /opencl/i.test(d.backend ?? '')) &&
+      !/[*?]/.test(d.deviceName),
+  );
 }
 
 /**

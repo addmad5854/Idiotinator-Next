@@ -120,7 +120,6 @@ const App = observer(() => {
     });
   }, []);
 
-
   return (
     <GestureHandlerRootView style={styles.root}>
       <StatusBar barStyle={theme.dark ? 'light-content' : 'dark-content'} />

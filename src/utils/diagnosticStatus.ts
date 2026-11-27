@@ -1,4 +1,7 @@
-export function diagnosticStatus(data: unknown, cancelled = false): 'pass' | 'fail' | 'unavailable' | 'cancelled' {
+export function diagnosticStatus(
+  data: unknown,
+  cancelled = false,
+): 'pass' | 'fail' | 'unavailable' | 'cancelled' {
   if (cancelled) return 'cancelled';
   if (data == null) return 'unavailable';
   if (typeof data === 'object') {

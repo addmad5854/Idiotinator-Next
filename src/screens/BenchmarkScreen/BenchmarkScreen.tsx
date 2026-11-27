@@ -1,6 +1,9 @@
 import {initLlama} from 'llama.rn';
 import {resolveUseMmap} from '../../utils/memorySettings';
-import {getCpuCoreCount, getThermalStatus} from '../../utils/deviceCapabilities';
+import {
+  getCpuCoreCount,
+  getThermalStatus,
+} from '../../utils/deviceCapabilities';
 import {DiagnosticsCard} from './DiagnosticsCard';
 import {View, ScrollView} from 'react-native';
 import React, {useState, useCallback, useContext, useEffect} from 'react';
@@ -69,8 +72,27 @@ const BENCHMARK_PARAMS_METADATA = {
 };
 
 export const BenchmarkScreen: React.FC = observer(() => {
-  const [memory, setMemory] = useState<{used: number; total: number} | null>(null);
-  useEffect(() => { let alive = true; const refresh = async () => { try { const [used,total] = await Promise.all([RNDeviceInfo.getUsedMemory(),RNDeviceInfo.getTotalMemory()]); if (alive) setMemory({used,total}); } catch {} }; refresh(); const timer = setInterval(refresh, 3000); return () => { alive = false; clearInterval(timer); }; }, []);
+  const [memory, setMemory] = useState<{used: number; total: number} | null>(
+    null,
+  );
+  useEffect(() => {
+    let alive = true;
+    const refresh = async () => {
+      try {
+        const [used, total] = await Promise.all([
+          RNDeviceInfo.getUsedMemory(),
+          RNDeviceInfo.getTotalMemory(),
+        ]);
+        if (alive) setMemory({used, total});
+      } catch {}
+    };
+    refresh();
+    const timer = setInterval(refresh, 3000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, []);
   const [tuning, setTuning] = useState(false);
   const [tuningReport, setTuningReport] = useState('');
   const [diagnosticRunning, setDiagnosticRunning] = useState(false);
@@ -109,7 +131,8 @@ export const BenchmarkScreen: React.FC = observer(() => {
   };
 
   const handleModelSelect = async (model: Model) => {
-    if (tuning || diagnosticRunning || isRunning || modelStore.isGenerationBusy) return;
+    if (tuning || diagnosticRunning || isRunning || modelStore.isGenerationBusy)
+      return;
     setShowModelMenu(false);
     if (model.id !== modelStore.activeModelId) {
       try {
@@ -150,7 +173,13 @@ export const BenchmarkScreen: React.FC = observer(() => {
   };
 
   const runBenchmark = async () => {
-    if (tuning || diagnosticRunning || isRunning || !modelStore.context || !modelStore.activeModel) {
+    if (
+      tuning ||
+      diagnosticRunning ||
+      isRunning ||
+      !modelStore.context ||
+      !modelStore.activeModel
+    ) {
       return;
     }
 
@@ -226,42 +255,98 @@ export const BenchmarkScreen: React.FC = observer(() => {
   const tuneThreads = async () => {
     const model = modelStore.activeModel;
     const settings = modelStore.activeContextSettings;
-    if (!model || !settings || !modelStore.context || modelStore.isGenerationBusy || modelStore.benchmarkActive || isRunning || diagnosticRunning || tuning) return;
+    if (
+      !model ||
+      !settings ||
+      !modelStore.context ||
+      modelStore.isGenerationBusy ||
+      modelStore.benchmarkActive ||
+      isRunning ||
+      diagnosticRunning ||
+      tuning
+    )
+      return;
     setTuning(true);
-    setTuningReport('Testing CPU threads; the active model will be temporarily unloaded.');
+    setTuningReport(
+      'Testing CPU threads; the active model will be temporarily unloaded.',
+    );
     const rows: {threads: number; speed: number}[] = [];
     let entered = false;
     let safeToRestore = true;
     try {
       const path = await modelStore.getModelFullPath(model);
       const cores = await getCpuCoreCount();
-      const candidates = [...new Set([Math.min(4, cores), Math.min(6, cores), Math.min(8, cores)])].filter(n => n > 0);
+      const candidates = [
+        ...new Set([
+          Math.min(4, cores),
+          Math.min(6, cores),
+          Math.min(8, cores),
+        ]),
+      ].filter(n => n > 0);
       entered = true;
       await modelStore.enterBenchmarkMode();
       for (const threads of candidates) {
         const heat = await getThermalStatus();
-        if (heat !== undefined && heat >= 2) throw new Error('Device too warm; retry after cooling.');
-        const useMmap = settings.use_mmap === 'smart' ? await resolveUseMmap('smart', path) : settings.use_mmap === 'true';
-        const ctx = await initLlama({...settings, use_mmap: useMmap, model: path, devices: ['CPU'], n_gpu_layers: 0, n_threads: threads});
+        if (heat !== undefined && heat >= 2)
+          throw new Error('Device too warm; retry after cooling.');
+        const useMmap =
+          settings.use_mmap === 'smart'
+            ? await resolveUseMmap('smart', path)
+            : settings.use_mmap === 'true';
+        const ctx = await initLlama({
+          ...settings,
+          use_mmap: useMmap,
+          model: path,
+          devices: ['CPU'],
+          n_gpu_layers: 0,
+          n_threads: threads,
+        });
         try {
-          const result = await ctx.bench(Math.min(128, settings.n_ubatch), 32, 1, 2);
-          if (Number.isFinite(result.speedTg) && result.speedTg > 0) rows.push({threads, speed: result.speedTg});
+          const result = await ctx.bench(
+            Math.min(128, settings.n_ubatch),
+            32,
+            1,
+            2,
+          );
+          if (Number.isFinite(result.speedTg) && result.speedTg > 0)
+            rows.push({threads, speed: result.speedTg});
         } finally {
-          try { await ctx.release(); } catch (error) { safeToRestore = false; throw error; }
+          try {
+            await ctx.release();
+          } catch (error) {
+            safeToRestore = false;
+            throw error;
+          }
         }
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
-      if (rows.length !== candidates.length) throw new Error('Incomplete benchmark');
-      rows.sort((a,b) => b.speed - a.speed);
+      if (rows.length !== candidates.length)
+        throw new Error('Incomplete benchmark');
+      rows.sort((a, b) => b.speed - a.speed);
       modelStore.setNThreads(rows[0].threads);
-      setTuningReport(rows.map(row => row.threads + ' threads: ' + row.speed.toFixed(2) + ' t/s').join(' | ') + '. Selected ' + rows[0].threads + ' threads.');
+      setTuningReport(
+        rows
+          .map(
+            row => row.threads + ' threads: ' + row.speed.toFixed(2) + ' t/s',
+          )
+          .join(' | ') +
+          '. Selected ' +
+          rows[0].threads +
+          ' threads.',
+      );
     } catch {
       setTuningReport('CPU tuning incomplete; no new recommendation applied.');
     } finally {
       if (entered) {
         modelStore.exitBenchmarkMode();
         if (safeToRestore) {
-          try { await modelStore.initContext(model); } catch { setTuningReport(prev => prev + ' Model reload failed; select it again.'); }
+          try {
+            await modelStore.initContext(model);
+          } catch {
+            setTuningReport(
+              prev => prev + ' Model reload failed; select it again.',
+            );
+          }
         }
       }
       setTuning(false);
@@ -600,17 +685,59 @@ export const BenchmarkScreen: React.FC = observer(() => {
         <Card elevation={0} style={styles.card}>
           <Card.Content>
             <Text variant="headlineMedium">System intelligence</Text>
-            <Text variant="bodyMedium">Live application memory and local benchmarks</Text>
-            <View style={{padding: 16, gap: 8, marginVertical: 12, borderRadius: 16, backgroundColor: theme.colors.surface}}>
+            <Text variant="bodyMedium">
+              Live application memory and local benchmarks
+            </Text>
+            <View
+              style={{
+                padding: 16,
+                gap: 8,
+                marginVertical: 12,
+                borderRadius: 16,
+                backgroundColor: theme.colors.surface,
+              }}>
               <Text variant="titleMedium">Application memory</Text>
-              <Text variant="headlineSmall">{memory ? (memory.used / 1073741824).toFixed(2) + ' GB' : 'Unavailable'}</Text>
-              <Text>Device RAM: {memory ? (memory.total / 1073741824).toFixed(1) + ' GB' : 'Unavailable'}</Text>
-              <Text>Active model: {modelStore.activeModel?.name || 'None'}</Text>
-              <Text>Context: {modelStore.context ? 'Loaded' : 'Not loaded'}</Text>
+              <Text variant="headlineSmall">
+                {memory
+                  ? (memory.used / 1073741824).toFixed(2) + ' GB'
+                  : 'Unavailable'}
+              </Text>
+              <Text>
+                Device RAM:{' '}
+                {memory
+                  ? (memory.total / 1073741824).toFixed(1) + ' GB'
+                  : 'Unavailable'}
+              </Text>
+              <Text>
+                Active model: {modelStore.activeModel?.name || 'None'}
+              </Text>
+              <Text>
+                Context: {modelStore.context ? 'Loaded' : 'Not loaded'}
+              </Text>
             </View>
-            <Button mode="outlined" disabled={tuning || isRunning || diagnosticRunning || !modelStore.context || modelStore.isGenerationBusy} loading={tuning} onPress={tuneThreads}>Optimize CPU threads</Button>
+            <Button
+              mode="outlined"
+              disabled={
+                tuning ||
+                isRunning ||
+                diagnosticRunning ||
+                !modelStore.context ||
+                modelStore.isGenerationBusy
+              }
+              loading={tuning}
+              onPress={tuneThreads}>
+              Optimize CPU threads
+            </Button>
             {tuningReport ? <Text>{tuningReport}</Text> : null}
-            <DiagnosticsCard busy={tuning || isRunning || !!modelStore.loadingModel || modelStore.isGenerationBusy} onRunning={setDiagnosticRunning} />
+            <DiagnosticsCard
+              busy={
+                tuning ||
+                isRunning ||
+                !!modelStore.loadingModel ||
+                modelStore.isGenerationBusy
+              }
+              onRunning={setDiagnosticRunning}
+            />
             <DeviceInfoCard onDeviceInfo={handleDeviceInfo} />
             {renderModelSelector()}
 
@@ -647,7 +774,11 @@ export const BenchmarkScreen: React.FC = observer(() => {
                       testID="start-test-button"
                       mode="contained"
                       onPress={runBenchmark}
-                      disabled={isRunning || diagnosticRunning || modelStore.isGenerationBusy}
+                      disabled={
+                        isRunning ||
+                        diagnosticRunning ||
+                        modelStore.isGenerationBusy
+                      }
                       style={styles.button}>
                       {isRunning
                         ? l10n.benchmark.buttons.runningTest

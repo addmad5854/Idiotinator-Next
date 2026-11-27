@@ -3211,10 +3211,12 @@ describe('ModelStore', () => {
           modelType: ModelType.VISION,
           defaultProjectionModel: c.projector,
         });
-        expect(downloadedIds()).toEqual([
-          `${c.repo}/${c.filename}`,
-          c.projector,
-        ]);
+        const mainId = `${c.repo}/${c.filename}`;
+        if (c.platform === 'android') {
+          expect(downloadedIds()).toEqual([mainId]);
+          await registeredDownloadCallbacks.onComplete(mainId);
+        }
+        expect(downloadedIds()).toEqual([mainId, c.projector]);
       });
 
       it('a search download over the text-only preset is vision and fetches the projector', async () => {
@@ -3237,6 +3239,10 @@ describe('ModelStore', () => {
           defaultProjectionModel: c.projector,
         });
         expect(fresh.defaultProjectionModel).toBe(c.projector);
+        if (c.platform === 'android') {
+          expect(downloadedIds()).toEqual([preset.id]);
+          await registeredDownloadCallbacks.onComplete(preset.id);
+        }
         expect(downloadedIds()).toEqual([preset.id, c.projector]);
       });
 

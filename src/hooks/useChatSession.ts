@@ -8,7 +8,7 @@ import {AccessibilityInfo} from 'react-native';
 import {toJS} from 'mobx';
 import type {JinjaFormattedChatResult} from 'llama.rn';
 
-import {chooseReasoning, reasoningInstruction, type ReasoningLevel} from '../utils/idiotinatorReasoning';
+import {reasoningInstruction, type ReasoningLevel} from '../utils/idiotinatorReasoning';
 import {randId} from '../utils';
 import {L10nContext} from '../utils';
 import {
@@ -182,7 +182,6 @@ const prepareCompletion = async ({
 
   const completionParamsWithAppProps = {
     ...sessionCompletionSettings,
-    ...(reasoningLevel ? {enable_thinking: reasoningLevel === 'deep', reasoning: {enabled: reasoningLevel === 'deep'}} : {}),
     // A spoken reply must start talking at once, not after a reasoning pass.
     ...(spoken ? {enable_thinking: false, reasoning: {enabled: false}} : {}),
     messages,
@@ -841,9 +840,15 @@ export const useChatSession = (
       }
     }
     const settings = await chatSessionStore.getCurrentCompletionSettings();
-    const reasoningLevel = !opts.spoken && !hasImages && modelStore.context && settings.enable_thinking !== false
-      ? await chooseReasoning(engine, message.text, currentMessages.slice(-4).map(m => m.type === 'text' ? m.text : '').join('\n'), lease.signal)
-      : undefined;
+    // Keep response generation as the first native completion. Explicit
+    // thinking and effort settings remain authoritative.
+    const reasoningLevel: ReasoningLevel | undefined =
+      !opts.spoken && !hasImages && modelStore.context &&
+      !lease.signal.aborted && settings.enable_thinking !== false
+        ? /^\s*(?:prove|derive)\b/i.test(message.text)
+          ? 'deep'
+          : 'standard'
+        : undefined;
     if (reasoningLevel) systemMessages.push({role: 'system', content: reasoningInstruction(reasoningLevel)});
     const {cleanCompletionParams, messageInfo} = await prepareCompletion({
       imageUris: imageUris || [],

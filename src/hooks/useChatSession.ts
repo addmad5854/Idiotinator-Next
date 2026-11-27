@@ -102,6 +102,7 @@ const prepareCompletion = async ({
   l10n,
   currentMessages,
   spoken,
+  sessionCompletionSettings,
 }: {
   imageUris: string[];
   message: MessageType.PartialText;
@@ -113,9 +114,10 @@ const prepareCompletion = async ({
   l10n: any;
   currentMessages: MessageType.Any[];
   spoken: boolean;
+  sessionCompletionSettings: Awaited<
+    ReturnType<typeof chatSessionStore.getCurrentCompletionSettings>
+  >;
 }) => {
-  const sessionCompletionSettings =
-    await chatSessionStore.getCurrentCompletionSettings();
   const stopWords = toJS(modelStore.activeModel?.stopWords);
 
   // Check if we have images and if multimodal is enabled
@@ -901,6 +903,7 @@ export const useChatSession = (
       l10n,
       currentMessages,
       spoken: !!opts.spoken,
+      sessionCompletionSettings: settings,
     });
 
     currentMessageInfo.current = messageInfo;

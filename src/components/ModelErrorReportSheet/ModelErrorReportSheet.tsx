@@ -5,7 +5,6 @@ import {ContextParams} from 'llama.rn';
 import DeviceInfo from 'react-native-device-info';
 import {Text, Button, Checkbox, ActivityIndicator} from 'react-native-paper';
 
-
 import {useTheme} from '../../hooks';
 
 import {createStyles} from './styles';
@@ -142,7 +141,12 @@ export const ModelErrorReportSheet: React.FC<ModelErrorReportSheetProps> = ({
           : undefined,
         additionalInfo: additionalInfo.trim() || undefined,
       };
-      await Share.share({title: 'Idiotinator bug report', message: 'Idiotinator model loading report\n' + JSON.stringify(report, null, 2)});
+      await Share.share({
+        title: 'Idiotinator bug report',
+        message:
+          'Idiotinator model loading report\n' +
+          JSON.stringify(report, null, 2),
+      });
     } catch (err) {
       console.error('Model error report submission error:', err);
       Alert.alert(
@@ -239,7 +243,9 @@ export const ModelErrorReportSheet: React.FC<ModelErrorReportSheetProps> = ({
       <Sheet.ScrollView contentContainerStyle={styles.container}>
         {/* Privacy Note */}
         <Text variant="bodySmall" style={styles.privacyNote}>
-          {'Review the selected details, then share the report to ChatGPT or your preferred app. Nothing is uploaded automatically.'}
+          {
+            'Review the selected details, then share the report to ChatGPT or your preferred app. Nothing is uploaded automatically.'
+          }
         </Text>
 
         {/* Error Message - always included */}
@@ -321,11 +327,7 @@ export const ModelErrorReportSheet: React.FC<ModelErrorReportSheetProps> = ({
             onPress={handleSubmit}
             disabled={isSubmitting}
             style={styles.button}>
-            {isSubmitting ? (
-              <ActivityIndicator size="small" />
-            ) : (
-              'Share Report'
-            )}
+            {isSubmitting ? <ActivityIndicator size="small" /> : 'Share Report'}
           </Button>
         </View>
       </Sheet.Actions>

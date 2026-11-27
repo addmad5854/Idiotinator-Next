@@ -1,0 +1,40 @@
+name: Patch branch formatting repair
+on:
+  workflow_dispatch:
+  push:
+    branches: [fix/downloader-range-recovery]
+    paths: ['.github/workflows/downloader-format-repair.yml']
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.21.0'
+      - run: npm install -g yarn@1.22.22
+      - run: yarn install --frozen-lockfile
+        env:
+          HUSKY: '0'
+      - name: Verify configuration before formatting
+        run: node --check jest.config.js
+      - name: Repair formatting
+        run: |
+          yarn exec -- prettier --write 'src/**/*.{js,ts,tsx}' App.tsx index.js jest.config.js
+          git diff --check
+      - name: Persist formatting on patch branch only
+        run: |
+          git add -u -- src App.tsx index.js jest.config.js
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Repair confirmed formatting failures on downloader patch branch'
+          git push origin HEAD:fix/downloader-range-recovery
+      - run: node --check jest.config.js
+      - run: yarn lint
+      - run: yarn typecheck
+        if: success() || failure()
+      - run: yarn test --ci --runInBand
+        if: success() || failure()

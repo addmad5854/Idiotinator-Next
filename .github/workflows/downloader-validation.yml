@@ -1,0 +1,237 @@
+name: Downloader non-APK validation
+on:
+  push:
+    branches: [fix/downloader-range-recovery]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  javascript:
+    if: github.event_name != 'pull_request' || github.head_ref == 'fix/downloader-range-recovery'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      # Must precede setup-node and setup-java: /opt/hostedtoolcache is where
+      # those install. The Hexagon SDK adds ~3.1 GB on top of a from-source build.
+      - name: Maximize build space
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /opt/ghc /opt/hostedtoolcache
+          df -h /
+
+      # Set up Node.js environment
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.21.0'
+          cache: 'yarn'
+
+      # Cache node_modules
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package.json', 'yarn.lock', 'patches/**') }}
+
+      - name: Install Yarn
+        run: npm install -g yarn@1.22.22
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+        env:
+          HUSKY: '0'
+
+      - name: Restore enriched-markdown native assets
+        # A cached node_modules can hold a failed download. Run directly, the script
+        # reads the app's "enriched-markdown" config only through INIT_CWD.
+        run: INIT_CWD="$GITHUB_WORKSPACE" node node_modules/react-native-enriched-markdown/postinstall.mjs
+
+      - name: Create dummy .env file for CI
+        run: |
+          cat > .env << 'EOL'
+          FIREBASE_FUNCTIONS_URL=https://dummy-firebase-url.com
+
+          # PalsHub/Supabase Configuration
+          SUPABASE_URL=https://dummy-supabase-url.supabase.co
+          SUPABASE_ANON_KEY=dummy-anon-key-for-ci-builds
+          PALSHUB_API_BASE_URL=https://dummy-palshub-api.com
+
+          # App Configuration
+          APP_URL=pocketpal://app
+
+          # Feature Flags (true/false)
+          ENABLE_PALSHUB_INTEGRATION=false
+          ENABLE_AUTHENTICATION=false
+          ENABLE_OFFLINE_MODE=true
+
+          # Google Sign-In Configuration
+          GOOGLE_IOS_CLIENT_ID=dummy-ios-client-id.apps.googleusercontent.com
+          GOOGLE_WEB_CLIENT_ID=dummy-web-client-id.apps.googleusercontent.com
+          EOL
+
+      - name: Verify Jest configuration syntax
+        run: node --check jest.config.js
+      - name: Lint
+        run: yarn lint
+      - name: TypeScript
+        if: success() || failure()
+        run: yarn typecheck
+      - name: Full Jest regression
+        if: success() || failure()
+        run: yarn test --ci --runInBand
+  native-downloader:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      ORG_GRADLE_PROJECT_rnllamaBuildFromSource: 'true'
+      ORG_GRADLE_PROJECT_reactNativeArchitectures: 'arm64-v8a,x86_64'
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      # Must precede setup-node and setup-java: /opt/hostedtoolcache is where
+      # those install. The Hexagon SDK adds ~3.1 GB on top of a from-source build.
+      - name: Maximize build space
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /opt/ghc /opt/hostedtoolcache
+          df -h /
+
+      # Set up Node.js environment
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.21.0'
+          cache: 'yarn'
+
+      # Cache node_modules
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package.json', 'yarn.lock', 'patches/**') }}
+
+      - name: Install Yarn
+        run: npm install -g yarn@1.22.22
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+        env:
+          HUSKY: '0'
+
+      - name: Restore enriched-markdown native assets
+        # A cached node_modules can hold a failed download. Run directly, the script
+        # reads the app's "enriched-markdown" config only through INIT_CWD.
+        run: INIT_CWD="$GITHUB_WORKSPACE" node node_modules/react-native-enriched-markdown/postinstall.mjs
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Set up Gradle build cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Restore Gradle task cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/caches/build-cache-1
+          key: ${{ runner.os }}-idiotinator-gradle-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-idiotinator-gradle-
+
+      - name: Create dummy google-services.json for CI
+        run: |
+          cat > android/app/google-services.json << 'EOL'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "dummy-project-for-ci",
+              "storage_bucket": "dummy-project-for-ci.appspot.com"
+            },
+            "client": [{
+              "client_info": {
+                "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+                "android_client_info": {
+                  "package_name": "com.personal.idiotinator.next"
+                }
+              },
+              "api_key": [{
+                "current_key": "dummy-api-key-for-ci-builds"
+              }]
+            }]
+          }
+          EOL
+
+      - name: Create dummy .env file for CI
+        run: |
+          cat > .env << 'EOL'
+          FIREBASE_FUNCTIONS_URL=https://dummy-firebase-url.com
+
+          # PalsHub/Supabase Configuration
+          SUPABASE_URL=https://dummy-supabase-url.supabase.co
+          SUPABASE_ANON_KEY=dummy-anon-key-for-ci-builds
+          PALSHUB_API_BASE_URL=https://dummy-palshub-api.com
+
+          # App Configuration
+          APP_URL=pocketpal://app
+
+          # Feature Flags (true/false)
+          ENABLE_PALSHUB_INTEGRATION=false
+          ENABLE_AUTHENTICATION=false
+          ENABLE_OFFLINE_MODE=true
+
+          # Google Sign-In Configuration
+          GOOGLE_IOS_CLIENT_ID=dummy-ios-client-id.apps.googleusercontent.com
+          GOOGLE_WEB_CLIENT_ID=dummy-web-client-id.apps.googleusercontent.com
+          EOL
+
+      - name: Apply standalone package configuration
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          p = Path('android/app/build.gradle')
+          s = p.read_text()
+          s = s.replace('// Cloud benchmark configuration intentionally omitted in standalone preview.', 'apply plugin: "com.google.gms.google-services"')
+          s = s.replace('applicationId "com.personal.idiotinator.next"', 'applicationId "com.personal.idiotinator.next"\n        resValue "string", "build_config_package", "com.pocketpal"')
+          assert 'versionCode 169' in s and 'versionName "0.2.0"' in s, 'Unexpected release version'
+          if os.environ['ORG_GRADLE_PROJECT_reactNativeArchitectures'] == 'arm64-v8a':
+              s = s.replace('abiFilters "arm64-v8a", "x86_64"', 'abiFilters "arm64-v8a"')
+          p.write_text(s)
+          PY
+
+      - name: Set up the Hexagon SDK
+        uses: ./.github/actions/setup-hexagon-sdk
+      - name: Set up ccache
+        uses: ./.github/actions/setup-ccache
+        with:
+          max-size: 4G
+      - name: Restore native compilation cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules/llama.rn/android/.cxx
+          key: ${{ runner.os }}-llama-native-v2-arm64-v8a-x86_64-${{ hashFiles('yarn.lock', 'patches/llama.rn*', 'android/build.gradle', 'android/gradle.properties', '.github/actions/setup-hexagon-sdk/action.yml') }}
+      - name: Compile patched native engine separately
+        working-directory: android
+        run: |
+          set -euo pipefail
+          bash gradlew :llama.rn:assembleRelease --stacktrace --build-cache --console=plain -PrnllamaBuildFromSource=true -PreactNativeArchitectures="$ORG_GRADLE_PROJECT_reactNativeArchitectures"
+      - name: Native downloader regression tests
+        working-directory: android
+        run: bash gradlew :app:testProdDebugUnitTest --tests 'com.pocketpal.download.*' --stacktrace --build-cache --console=plain -PrnllamaBuildFromSource=true -PreactNativeArchitectures="$ORG_GRADLE_PROJECT_reactNativeArchitectures"
+
+      - name: Upload native test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: downloader-native-test-results
+          path: |
+            android/app/build/test-results/testProdDebugUnitTest/
+            android/app/build/reports/tests/testProdDebugUnitTest/
+          if-no-files-found: warn

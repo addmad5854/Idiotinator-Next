@@ -3,8 +3,20 @@ import {appSchema, tableSchema} from '@nozbe/watermelondb';
 export default appSchema({
   version: 10,
   tables: [
-    tableSchema({name:'adaptive_memory_terms',columns:[{name:'term',type:'string',isIndexed:true},{name:'memory_id',type:'string',isIndexed:true}]}),
-    tableSchema({name:'adaptive_memories',columns:[{name:'memory_id',type:'string',isIndexed:true},{name:'payload',type:'string'}]}),
+    tableSchema({
+      name: 'adaptive_memory_terms',
+      columns: [
+        {name: 'term', type: 'string', isIndexed: true},
+        {name: 'memory_id', type: 'string', isIndexed: true},
+      ],
+    }),
+    tableSchema({
+      name: 'adaptive_memories',
+      columns: [
+        {name: 'memory_id', type: 'string', isIndexed: true},
+        {name: 'payload', type: 'string'},
+      ],
+    }),
     tableSchema({
       name: 'chat_sessions',
       columns: [

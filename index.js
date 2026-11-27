@@ -15,7 +15,6 @@ if (__E2E__) {
   LogBox.ignoreAllLogs(true);
 }
 
-
 import {name as appName} from './app.json';
 
 AppRegistry.registerComponent(appName, () => {
@@ -24,8 +23,22 @@ AppRegistry.registerComponent(appName, () => {
   } catch (error) {
     const detail = String(error?.stack || error);
     return function StartupDiagnostic() {
-      return React.createElement(ScrollView, {style: {flex: 1, padding: 24, paddingTop: 64, backgroundColor: '#ffffff'}},
-        React.createElement(Text, {style: {color: '#111111', fontSize: 18}, selectable: true}, 'Idiotinator startup error\n\n' + detail));
+      return React.createElement(
+        ScrollView,
+        {
+          style: {
+            flex: 1,
+            padding: 24,
+            paddingTop: 64,
+            backgroundColor: '#ffffff',
+          },
+        },
+        React.createElement(
+          Text,
+          {style: {color: '#111111', fontSize: 18}, selectable: true},
+          'Idiotinator startup error\n\n' + detail,
+        ),
+      );
     };
   }
 });

@@ -397,21 +397,32 @@ export const SettingsScreen: React.FC = observer(() => {
                     />
 
                     {/* GPU Layers Slider */}
-                    {getCurrentDeviceId() !== 'cpu' ? <>
-                    <InputSlider
-                      testID="gpu-layers-slider"
-                      value={modelStore.contextInitParams.n_gpu_layers}
-                      onValueChange={value =>
-                        modelStore.setNGPULayers(Math.round(value))
-                      }
-                      min={0}
-                      max={99}
-                      step={1}
-                    />
-                    <Text variant="labelSmall" style={styles.textDescription}>
-                      Requested accelerator layers: {modelStore.contextInitParams.n_gpu_layers === 99 ? 'All' : modelStore.contextInitParams.n_gpu_layers}
-                    </Text>
-                    </> : <Text variant="labelSmall" style={styles.textDescription}>CPU only — 0 accelerator layers</Text>}
+                    {getCurrentDeviceId() !== 'cpu' ? (
+                      <>
+                        <InputSlider
+                          testID="gpu-layers-slider"
+                          value={modelStore.contextInitParams.n_gpu_layers}
+                          onValueChange={value =>
+                            modelStore.setNGPULayers(Math.round(value))
+                          }
+                          min={0}
+                          max={99}
+                          step={1}
+                        />
+                        <Text
+                          variant="labelSmall"
+                          style={styles.textDescription}>
+                          Requested accelerator layers:{' '}
+                          {modelStore.contextInitParams.n_gpu_layers === 99
+                            ? 'All'
+                            : modelStore.contextInitParams.n_gpu_layers}
+                        </Text>
+                      </>
+                    ) : (
+                      <Text variant="labelSmall" style={styles.textDescription}>
+                        CPU only — 0 accelerator layers
+                      </Text>
+                    )}
                   </>
                 ) : (
                   /* Simplified UI when only CPU available */
@@ -427,7 +438,8 @@ export const SettingsScreen: React.FC = observer(() => {
 
                 {/* OpenCL quantization note for Android */}
                 {Platform.OS === 'android' &&
-                  gpuSupported && getCurrentDeviceId() === 'gpu' &&
+                  gpuSupported &&
+                  getCurrentDeviceId() === 'gpu' &&
                   (modelStore.contextInitParams.n_gpu_layers ?? 0) > 0 && (
                     <View>
                       <Text variant="labelSmall" style={styles.textDescription}>
@@ -1092,7 +1104,11 @@ export const SettingsScreen: React.FC = observer(() => {
                 <View style={styles.switchContainer}>
                   <View style={styles.textContainer}>
                     <View style={styles.labelWithIconContainer}>
-                      <Icon source="volume-high" size={20} color={theme.colors.onSurface} />
+                      <Icon
+                        source="volume-high"
+                        size={20}
+                        color={theme.colors.onSurface}
+                      />
                       <Text variant="titleMedium" style={styles.textLabel}>
                         {l10n.settings.ttsAvailability}
                       </Text>
@@ -1121,7 +1137,11 @@ export const SettingsScreen: React.FC = observer(() => {
                 <View style={styles.switchContainer}>
                   <View style={styles.textContainer}>
                     <View style={styles.labelWithIconContainer}>
-                      <Icon source="microphone" size={20} color={theme.colors.onSurface} />
+                      <Icon
+                        source="microphone"
+                        size={20}
+                        color={theme.colors.onSurface}
+                      />
                       <Text variant="titleMedium" style={styles.textLabel}>
                         {l10n.voiceInput.settingTitle}
                       </Text>
@@ -1670,7 +1690,6 @@ export const SettingsScreen: React.FC = observer(() => {
               </Card.Content>
             </Card>
           )}
-
 
           <LocalApiServerCard />
           <MemoryCard />

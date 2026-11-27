@@ -1,26 +1,79 @@
 import {parseDisputes} from '../memoryContradictions';
 import {isSensitiveMemory} from '../memoryPrivacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {retrieveMemories, rememberExplicit, listMemories, learnFeedback, setAutoLearningEnabled, setMemoryEnabled, saveKnowledgeCandidate, updateMemory, exportMemories, restoreMemories, type MemoryEntry} from '../adaptiveMemory';
+import {
+  retrieveMemories,
+  rememberExplicit,
+  listMemories,
+  learnFeedback,
+  setAutoLearningEnabled,
+  setMemoryEnabled,
+  saveKnowledgeCandidate,
+  updateMemory,
+  exportMemories,
+  restoreMemories,
+  type MemoryEntry,
+} from '../adaptiveMemory';
 import {extractKnowledge, groundedCandidate} from '../knowledgeExtraction';
 import {confidence} from '../learningEvidence';
 
 jest.mock('@react-native-async-storage/async-storage', () => {
-  const data = new Map<string,string>();
-  return {__esModule:true, default:{getItem:jest.fn(async (k:string)=>data.get(k) ?? null),setItem:jest.fn(async (k:string,v:string)=>{data.set(k,v);}),removeItem:jest.fn(async(k:string)=>{data.delete(k);}),clear:jest.fn(async()=>{data.clear();})}};
+  const data = new Map<string, string>();
+  return {
+    __esModule: true,
+    default: {
+      getItem: jest.fn(async (k: string) => data.get(k) ?? null),
+      setItem: jest.fn(async (k: string, v: string) => {
+        data.set(k, v);
+      }),
+      removeItem: jest.fn(async (k: string) => {
+        data.delete(k);
+      }),
+      clear: jest.fn(async () => {
+        data.clear();
+      }),
+    },
+  };
 });
-jest.mock('../memoryDatabase',()=>{let rows:unknown[]=[];return {readMemoryRows:jest.fn(async()=>JSON.parse(JSON.stringify(rows))),writeMemoryRows:jest.fn(async(v:unknown[])=>{rows=JSON.parse(JSON.stringify(v));})};});
-beforeEach(async()=>{await AsyncStorage.clear();await require('../memoryDatabase').writeMemoryRows([]);});
-test('unconfirmed candidates never enter chat retrieval',()=>{
-  const e:MemoryEntry={id:'1',text:'My motorcycle is blue',source:'user',createdAt:1,evidence:{kind:'model_candidate',text:'My motorcycle is blue',recordedAt:1}};
-  expect(retrieveMemories([e],'motorcycle')).toEqual([]);
+jest.mock('../memoryDatabase', () => {
+  let rows: unknown[] = [];
+  return {
+    readMemoryRows: jest.fn(async () => JSON.parse(JSON.stringify(rows))),
+    writeMemoryRows: jest.fn(async (v: unknown[]) => {
+      rows = JSON.parse(JSON.stringify(v));
+    }),
+  };
 });
-test('extraction rejects fabricated and sensitive quotes',()=>{
-  expect(groundedCandidate('My motorcycle is blue','My motorcycle is red')).toBeNull();
-  expect(groundedCandidate('My password is abcdef','My password is abcdef')).toBeNull();
-  expect(groundedCandidate('My motorcycle is blue','My motorcycle is blue')).toBe('My motorcycle is blue');
+beforeEach(async () => {
+  await AsyncStorage.clear();
+  await require('../memoryDatabase').writeMemoryRows([]);
 });
-test('learning is opt-in and respects disabled memory',async()=>{
+test('unconfirmed candidates never enter chat retrieval', () => {
+  const e: MemoryEntry = {
+    id: '1',
+    text: 'My motorcycle is blue',
+    source: 'user',
+    createdAt: 1,
+    evidence: {
+      kind: 'model_candidate',
+      text: 'My motorcycle is blue',
+      recordedAt: 1,
+    },
+  };
+  expect(retrieveMemories([e], 'motorcycle')).toEqual([]);
+});
+test('extraction rejects fabricated and sensitive quotes', () => {
+  expect(
+    groundedCandidate('My motorcycle is blue', 'My motorcycle is red'),
+  ).toBeNull();
+  expect(
+    groundedCandidate('My password is abcdef', 'My password is abcdef'),
+  ).toBeNull();
+  expect(
+    groundedCandidate('My motorcycle is blue', 'My motorcycle is blue'),
+  ).toBe('My motorcycle is blue');
+});
+test('learning is opt-in and respects disabled memory', async () => {
   await saveKnowledgeCandidate('My motorcycle is blue');
   expect(await listMemories()).toEqual([]);
   await setAutoLearningEnabled(true);
@@ -28,63 +81,138 @@ test('learning is opt-in and respects disabled memory',async()=>{
   await learnFeedback('Correction: My preferred language is Marathi');
   expect(await listMemories()).toEqual([]);
 });
-test('keyed corrections replace old preferences',async()=>{
+test('keyed corrections replace old preferences', async () => {
   await setAutoLearningEnabled(true);
   await rememberExplicit('My preferred language is English');
   await learnFeedback('Correction: My preferred language is Marathi');
-  expect((await listMemories()).map(e=>e.text)).toEqual(['My preferred language is Marathi']);
+  expect((await listMemories()).map(e => e.text)).toEqual([
+    'My preferred language is Marathi',
+  ]);
 });
-test('editing invalidates evidence and backup retains valid evidence',async()=>{
+test('editing invalidates evidence and backup retains valid evidence', async () => {
   await setAutoLearningEnabled(true);
   await learnFeedback('Correction: My preferred language is Marathi');
-  const backup=await exportMemories();
+  const backup = await exportMemories();
   await restoreMemories(backup);
-  const [entry]=await listMemories();
+  const [entry] = await listMemories();
   expect(entry.evidence?.kind).toBe('user_correction');
-  await updateMemory(entry.id,'My preferred language is Hindi');
+  await updateMemory(entry.id, 'My preferred language is Hindi');
   expect((await listMemories())[0].evidence).toBeUndefined();
 });
-test('disputed evidence receives zero confidence',()=>{
-  expect(confidence({key:'x',claim:'x',disputed:true,evidence:[]})).toBe(0);
+test('disputed evidence receives zero confidence', () => {
+  expect(confidence({key: 'x', claim: 'x', disputed: true, evidence: []})).toBe(
+    0,
+  );
 });
 
-test('privacy screening catches email and long identifiers',()=>{expect(isSensitiveMemory('Contact me at test@example.com')).toBe(true);expect(isSensitiveMemory('My identifier is 123456789012')).toBe(true);expect(isSensitiveMemory('My motorcycle is blue')).toBe(false);});
-test('mismatched evidence receives no confidence',()=>{expect(confidence({key:'x',claim:'new',disputed:false,evidence:[{kind:'user_correction',text:'old',recordedAt:1}]})).toBe(0);});
+test('privacy screening catches email and long identifiers', () => {
+  expect(isSensitiveMemory('Contact me at test@example.com')).toBe(true);
+  expect(isSensitiveMemory('My identifier is 123456789012')).toBe(true);
+  expect(isSensitiveMemory('My motorcycle is blue')).toBe(false);
+});
+test('mismatched evidence receives no confidence', () => {
+  expect(
+    confidence({
+      key: 'x',
+      claim: 'new',
+      disputed: false,
+      evidence: [{kind: 'user_correction', text: 'old', recordedAt: 1}],
+    }),
+  ).toBe(0);
+});
 
-test('explicit confirmation promotes a candidate',async()=>{
+test('explicit confirmation promotes a candidate', async () => {
   await setAutoLearningEnabled(true);
   await saveKnowledgeCandidate('My motorcycle is blue');
   await rememberExplicit('My motorcycle is blue');
-  expect(retrieveMemories(await listMemories(),'motorcycle')).toHaveLength(1);
+  expect(retrieveMemories(await listMemories(), 'motorcycle')).toHaveLength(1);
 });
-test('invalid backup evidence cannot promote a candidate',async()=>{
-  await expect(restoreMemories(JSON.stringify({schema:1,entries:[{id:'bad',text:'My motorcycle is blue',source:'user',createdAt:1,evidence:{kind:'model_candidate',text:'different',recordedAt:1}}]}))).rejects.toThrow('Invalid memory evidence');
+test('invalid backup evidence cannot promote a candidate', async () => {
+  await expect(
+    restoreMemories(
+      JSON.stringify({
+        schema: 1,
+        entries: [
+          {
+            id: 'bad',
+            text: 'My motorcycle is blue',
+            source: 'user',
+            createdAt: 1,
+            evidence: {
+              kind: 'model_candidate',
+              text: 'different',
+              recordedAt: 1,
+            },
+          },
+        ],
+      }),
+    ),
+  ).rejects.toThrow('Invalid memory evidence');
 });
 
-test('aborted extraction waits for native stop and discards result',async()=>{
-  const controller=new AbortController();
-  let finish!: (value:{text:string;content:string})=>void;
-  const completion=jest.fn(()=>new Promise<{text:string;content:string}>(resolve=>{finish=resolve;}));
-  const stopCompletion=jest.fn(async()=>{finish({text:'My motorcycle is painted blue',content:'My motorcycle is painted blue'});});
-  const pending=extractKnowledge({completion,stopCompletion},'My motorcycle is painted blue',controller.signal);
+test('aborted extraction waits for native stop and discards result', async () => {
+  const controller = new AbortController();
+  let finish!: (value: {text: string; content: string}) => void;
+  const completion = jest.fn(
+    () =>
+      new Promise<{text: string; content: string}>(resolve => {
+        finish = resolve;
+      }),
+  );
+  const stopCompletion = jest.fn(async () => {
+    finish({
+      text: 'My motorcycle is painted blue',
+      content: 'My motorcycle is painted blue',
+    });
+  });
+  const pending = extractKnowledge(
+    {completion, stopCompletion},
+    'My motorcycle is painted blue',
+    controller.signal,
+  );
   controller.abort();
   expect(await pending).toBeNull();
   expect(stopCompletion).toHaveBeenCalledTimes(1);
 });
 
-test('extraction cannot omit negation from a sentence',()=>{expect(groundedCandidate('I do not prefer English','prefer English')).toBeNull();expect(groundedCandidate('My motorcycle is not blue','My motorcycle is')).toBeNull();});
-test('explicit secrets are not persisted',async()=>{await rememberExplicit('My password is abcdef');expect(await listMemories()).toEqual([]);});
+test('extraction cannot omit negation from a sentence', () => {
+  expect(
+    groundedCandidate('I do not prefer English', 'prefer English'),
+  ).toBeNull();
+  expect(
+    groundedCandidate('My motorcycle is not blue', 'My motorcycle is'),
+  ).toBeNull();
+});
+test('explicit secrets are not persisted', async () => {
+  await rememberExplicit('My password is abcdef');
+  expect(await listMemories()).toEqual([]);
+});
 
-test('semantic dispute parser rejects unknown IDs and malformed output',()=>{const e:MemoryEntry={id:'a',text:'My car is blue',source:'user',createdAt:1};expect(parseDisputes('["a","unknown"]',[e])).toEqual(['a']);expect(parseDisputes('not JSON',[e])).toEqual([]);expect(retrieveMemories([{...e,disputed:true}],'car')).toEqual([]);});
+test('semantic dispute parser rejects unknown IDs and malformed output', () => {
+  const e: MemoryEntry = {
+    id: 'a',
+    text: 'My car is blue',
+    source: 'user',
+    createdAt: 1,
+  };
+  expect(parseDisputes('["a","unknown"]', [e])).toEqual(['a']);
+  expect(parseDisputes('not JSON', [e])).toEqual([]);
+  expect(retrieveMemories([{...e, disputed: true}], 'car')).toEqual([]);
+});
 
-test('legacy import retries after failed database write and cleans source only after success',async()=>{
+test('legacy import retries after failed database write and cleans source only after success', async () => {
   jest.resetModules();
-  const storage=require('@react-native-async-storage/async-storage').default;
-  const db=require('../memoryDatabase');
-  const memory=require('../adaptiveMemory');
-  const key='@idiotinator/adaptive-memory/v1';
-  const entry={id:'legacy',text:'My car is blue',source:'user',createdAt:1};
-  await storage.setItem(key,JSON.stringify([entry]));
+  const storage = require('@react-native-async-storage/async-storage').default;
+  const db = require('../memoryDatabase');
+  const memory = require('../adaptiveMemory');
+  const key = '@idiotinator/adaptive-memory/v1';
+  const entry = {
+    id: 'legacy',
+    text: 'My car is blue',
+    source: 'user',
+    createdAt: 1,
+  };
+  await storage.setItem(key, JSON.stringify([entry]));
   db.writeMemoryRows.mockRejectedValueOnce(new Error('disk failure'));
   await expect(memory.listMemories()).rejects.toThrow('disk failure');
   expect(await storage.getItem(key)).not.toBeNull();

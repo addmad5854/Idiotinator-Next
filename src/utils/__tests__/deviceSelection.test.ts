@@ -1,7 +1,13 @@
 import {Platform} from 'react-native';
 import {getBackendDevicesInfo} from 'llama.rn';
 
-import {getDeviceOptions, resolveDeviceSelection, isHexagonAvailable, validateModelQuantizationForDevice, detectQuantizationType} from '../deviceSelection';
+import {
+  getDeviceOptions,
+  resolveDeviceSelection,
+  isHexagonAvailable,
+  validateModelQuantizationForDevice,
+  detectQuantizationType,
+} from '../deviceSelection';
 
 const discover = getBackendDevicesInfo as jest.Mock;
 const device = (deviceName: string) => ({
@@ -122,35 +128,66 @@ describe('Hexagon device selection', () => {
   });
 });
 
-test('OpenCL and HTP remain distinct even when both report GPU type',async()=>{const os=Platform.OS;Platform.OS='android';try{discover.mockResolvedValue([{...device('HTP0'),type:'gpu'},{...device('GPUOpenCL'),type:'gpu',backend:'OpenCL'}]);const options=await getDeviceOptions();expect(options.find(o=>o.id==='gpu')?.devices).toEqual(['GPUOpenCL']);expect(options.find(o=>o.id==='hexagon')?.devices).toEqual(['HTP0']);}finally{Platform.OS=os;}});
+test('OpenCL and HTP remain distinct even when both report GPU type', async () => {
+  const os = Platform.OS;
+  Platform.OS = 'android';
+  try {
+    discover.mockResolvedValue([
+      {...device('HTP0'), type: 'gpu'},
+      {...device('GPUOpenCL'), type: 'gpu', backend: 'OpenCL'},
+    ]);
+    const options = await getDeviceOptions();
+    expect(options.find(o => o.id === 'gpu')?.devices).toEqual(['GPUOpenCL']);
+    expect(options.find(o => o.id === 'hexagon')?.devices).toEqual(['HTP0']);
+  } finally {
+    Platform.OS = os;
+  }
+});
 
- test('preserves exact HTP choice and rejects wildcard-only availability', async () => {
+test('preserves exact HTP choice and rejects wildcard-only availability', async () => {
   const os = Platform.OS;
   Platform.OS = 'android';
   try {
     discover.mockResolvedValue([device('HTP0'), device('HTP3')]);
-    expect(await resolveDeviceSelection({devices: ['HTP3'], n_gpu_layers: 23})).toEqual({devices: ['HTP3'], n_gpu_layers: 23});
+    expect(
+      await resolveDeviceSelection({devices: ['HTP3'], n_gpu_layers: 23}),
+    ).toEqual({devices: ['HTP3'], n_gpu_layers: 23});
     discover.mockResolvedValue([device('HTP*')]);
     expect(await isHexagonAvailable()).toBe(false);
-  } finally { Platform.OS = os; }
+  } finally {
+    Platform.OS = os;
+  }
 });
 
- test('reports unverified accelerator quantization without claiming compatibility', async () => {
+test('reports unverified accelerator quantization without claiming compatibility', async () => {
   const os = Platform.OS;
   Platform.OS = 'android';
   try {
-    discover.mockResolvedValue([device('HTP0'), {...device('GPUOpenCL'), type: 'gpu', backend: 'OpenCL'}]);
+    discover.mockResolvedValue([
+      device('HTP0'),
+      {...device('GPUOpenCL'), type: 'gpu', backend: 'OpenCL'},
+    ]);
     const options = await getDeviceOptions();
     const gpu = options.find(o => o.id === 'gpu')!;
     const htp = options.find(o => o.id === 'hexagon')!;
-    expect(validateModelQuantizationForDevice('unknown.gguf', gpu).warning).toContain('unverified');
-    expect(validateModelQuantizationForDevice('model-Q4_K_M.gguf', htp).warning).toContain('unverified');
-    expect(validateModelQuantizationForDevice('model-Q4_K_M.gguf', gpu).valid).toBe(false);
-    expect(validateModelQuantizationForDevice('model-Q4_0.gguf', gpu).valid).toBe(true);
-  } finally { Platform.OS = os; }
+    expect(
+      validateModelQuantizationForDevice('unknown.gguf', gpu).warning,
+    ).toContain('unverified');
+    expect(
+      validateModelQuantizationForDevice('model-Q4_K_M.gguf', htp).warning,
+    ).toContain('unverified');
+    expect(
+      validateModelQuantizationForDevice('model-Q4_K_M.gguf', gpu).valid,
+    ).toBe(false);
+    expect(
+      validateModelQuantizationForDevice('model-Q4_0.gguf', gpu).valid,
+    ).toBe(true);
+  } finally {
+    Platform.OS = os;
+  }
 });
 
- test('quantization detection does not confuse IQ4_0 or longer suffixes with Q4_0', () => {
+test('quantization detection does not confuse IQ4_0 or longer suffixes with Q4_0', () => {
   expect(detectQuantizationType('model-IQ4_0.gguf')).toBeNull();
   expect(detectQuantizationType('model-Q4_00.gguf')).toBeNull();
   expect(detectQuantizationType('model-Q4_0.gguf')).toBe('q4_0');

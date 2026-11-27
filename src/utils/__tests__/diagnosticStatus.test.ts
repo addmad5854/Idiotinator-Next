@@ -9,5 +9,6 @@ describe('diagnostic outcomes', () => {
     expect(diagnosticStatus({loaded: false})).toBe('unavailable');
     expect(diagnosticStatus({match: true}, true)).toBe('cancelled');
   });
-  it('accepts correct results', () => expect(diagnosticStatus({match: true})).toBe('pass'));
+  it('accepts correct results', () =>
+    expect(diagnosticStatus({match: true})).toBe('pass'));
 });

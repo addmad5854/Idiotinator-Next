@@ -507,6 +507,46 @@ class DownloadEngineTest {
     }
 
     @Test
+    fun malformedPartialRangesRestartWithoutAppending() {
+        val invalidRanges = listOf(
+            "bytes 100-99/${content.size}",
+            "bytes 100-${content.size}/${content.size}",
+            "bytes 100-199/${content.size}",
+            "bytes 999999999999999999999-199/${content.size}",
+            "invalid bytes 100-${content.size - 1}/${content.size}",
+        )
+        for (range in invalidRanges) {
+            requests.clear()
+            destination.delete()
+            insert(totalBytes = content.size.toLong())
+            part.writeBytes(seed(100))
+            serve({ partial(100).setHeader("Content-Range", range) }, honest())
+
+            assertEquals(Outcome.DONE, run())
+
+            assertEquals(2, requests.size)
+            assertNull(requests[1].getHeader("Range"))
+            assertCompleted()
+        }
+    }
+
+    @Test
+    fun failedRestartCleanupStopsWithoutRetrying() {
+        insert(totalBytes = content.size.toLong())
+        assertTrue(part.mkdir())
+        File(part, "keep").writeText("data")
+        serve({ MockResponse().setResponseCode(206).setHeader("Content-Range", "invalid") })
+
+        assertEquals(Outcome.DONE, run())
+
+        assertEquals(DownloadStatus.FAILED, row().status)
+        assertEquals("Could not remove the partial download", row().error)
+        assertEquals(1, requests.size)
+        assertTrue(File(part, "keep").exists())
+        assertFalse(destination.exists())
+    }
+
+    @Test
     fun shortBodyAtCleanEofFailsAndDeletesPart() {
         insert(totalBytes = content.size.toLong())
         writePart(100)

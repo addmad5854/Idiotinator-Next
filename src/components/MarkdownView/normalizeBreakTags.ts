@@ -1,7 +1,17 @@
 import {closesFence, Fence, openingFence} from './codeFence';
 
 const BREAK_TAG = /<br[ \t]*\/?>/gi;
-const normalizeText = (text: string) => text.replace(BREAK_TAG, ' ').replace(/(^|[^\\])((?:\\\\)*)\\\((.+?)\\\)/g, (_, prefix, escaped, math) => prefix + escaped + '$' + math + '$').replace(/(^|[^\\])((?:\\\\)*)\\\[(.+?)\\\]/g, (_, prefix, escaped, math) => prefix + escaped + '$$' + math + '$$');
+const normalizeText = (text: string) =>
+  text
+    .replace(BREAK_TAG, ' ')
+    .replace(
+      /(^|[^\\])((?:\\\\)*)\\\((.+?)\\\)/g,
+      (_, prefix, escaped, math) => prefix + escaped + '$' + math + '$',
+    )
+    .replace(
+      /(^|[^\\])((?:\\\\)*)\\\[(.+?)\\\]/g,
+      (_, prefix, escaped, math) => prefix + escaped + '$$' + math + '$$',
+    );
 const endOfBacktickRun = (line: string, start: number): number => {
   let end = start;
   while (line[end] === '`') {
@@ -45,8 +55,7 @@ const replaceOutsideCodeSpans = (line: string): string => {
       i = runEnd;
       continue;
     }
-    result +=
-      normalizeText(line.slice(textStart, i)) + line.slice(i, spanEnd);
+    result += normalizeText(line.slice(textStart, i)) + line.slice(i, spanEnd);
     textStart = i = spanEnd;
   }
   return result + normalizeText(line.slice(textStart));
@@ -72,16 +81,22 @@ export const normalizeBreakTags = (text: string): string => {
       continue;
     }
     fence = openingFence(line);
-    if (fence) {displayOpen = -1; continue;}
+    if (fence) {
+      displayOpen = -1;
+      continue;
+    }
     if (/^\s*\\\[\s*$/.test(line)) displayOpen = i;
     else if (displayOpen >= 0 && /^\s*\\\]\s*$/.test(line)) {
-      lines[displayOpen] = lines[displayOpen].replace('\\[', () => String.fromCharCode(36, 36));
+      lines[displayOpen] = lines[displayOpen].replace('\\[', () =>
+        String.fromCharCode(36, 36),
+      );
       lines[i] = line.replace('\\]', () => String.fromCharCode(36, 36));
       displayOpen = -1;
     }
   }
   fence = undefined;
-  return lines.join('\n')
+  return lines
+    .join('\n')
     .split('\n')
     .map(line => {
       if (fence) {

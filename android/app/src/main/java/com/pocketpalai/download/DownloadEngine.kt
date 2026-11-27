@@ -139,7 +139,7 @@ class DownloadEngine(
                 when (val attempt = attempt(if (part.exists()) part.length() else 0L)) {
                     is Attempt.Finished -> return if (attempt.end == End.Completed) commit() else attempt.end
                     Attempt.Restart -> {
-                        part.delete()
+                        if (part.exists() && !part.delete()) return End.Failed("Could not remove the partial download")
                         if (restarted) return End.Failed(REMOTE_CHANGED_ERROR)
                         restarted = true
                         etag = null
@@ -231,12 +231,15 @@ class DownloadEngine(
                     write(response, append = false, start = 0)
                 }
                 code == 206 -> {
-                    val range = CONTENT_RANGE.find(response.header("Content-Range").orEmpty())
+                    val range = CONTENT_RANGE.matchEntire(response.header("Content-Range").orEmpty())
                         ?: return Attempt.Restart
-                    val start = range.groupValues[1].toLong()
+                    val start = range.groupValues[1].toLongOrNull() ?: return Attempt.Restart
+                    val end = range.groupValues[2].toLongOrNull() ?: return Attempt.Restart
                     val total = range.groupValues[3].toLongOrNull() ?: 0
                     val responseEtag = strongEtag(response)
-                    val valid = start == offset &&
+                    val valid = start == offset && end >= start && end < Long.MAX_VALUE &&
+                        (total <= 0 || end < total) &&
+                        (response.body?.contentLength()?.let { it < 0 || it == end - start + 1 } == true) &&
                         (totalBytes <= 0 || total == totalBytes) &&
                         (etag == null || responseEtag == null || responseEtag == etag)
                     if (!valid) return Attempt.Restart

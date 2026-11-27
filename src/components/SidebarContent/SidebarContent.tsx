@@ -546,8 +546,14 @@ export const SidebarContent: React.FC<DrawerContentComponentProps> = observer(
       () => (
         <View>
           <View style={{paddingHorizontal: 20, paddingVertical: 18}}>
-            <Text variant="headlineSmall" style={{fontWeight: '700'}}>Idiotinator</Text>
-            <Text variant="bodySmall" style={{color: theme.colors.textSecondary}}>Local intelligence · Your device</Text>
+            <Text variant="headlineSmall" style={{fontWeight: '700'}}>
+              Idiotinator
+            </Text>
+            <Text
+              variant="bodySmall"
+              style={{color: theme.colors.textSecondary}}>
+              Local intelligence · Your device
+            </Text>
           </View>
           <Drawer.Section showDivider={false}>
             <Drawer.Item

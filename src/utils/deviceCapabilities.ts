@@ -258,7 +258,9 @@ export async function getThermalStatus(): Promise<number | undefined> {
   if (Platform.OS !== 'android') return undefined;
   try {
     const status = await NativeHardwareInfo.getThermalStatus?.();
-    return typeof status === 'number' && status >= 0 && status <= 6 ? status : undefined;
+    return typeof status === 'number' && status >= 0 && status <= 6
+      ? status
+      : undefined;
   } catch {
     return undefined;
   }

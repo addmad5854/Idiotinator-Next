@@ -14,3 +14,5 @@ Committed, not independently tested in this handoff:
 D06–D15: incomplete per prior handoff; exact individual definitions not yet recovered. Do not invent identifiers or mark complete without evidence. Record commit, test result and remaining limitations for each patch.
 
 2026-11-26: 2c4e40f adoption/416 hardening; 208e377 restores clean EOF rejection to preserve upstream tests. 47a899a exact HTP selection and wildcard availability fix; regression test added. CI not verified.
+
+2026-11-27 Batch 1 patch 1: 164bc9d validates HTTP 206 range bounds and declared body length, and stops on failed restart cleanup. 7fd336a adds malformed-range and cleanup regression cases. Tests not executed; do not merge or claim pass until native regression, lint, typecheck and Jest gates are verified. No APK requested.

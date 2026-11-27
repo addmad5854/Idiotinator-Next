@@ -263,6 +263,9 @@ class ModelStore {
   // Runtime-only; not persisted.
   benchmarkActive: boolean = false;
 
+  // Android enqueue is not transfer completion. Track targets waiting for a projector.
+  private pendingProjectorTargets = new Map<string, Set<string>>();
+
   downloadError: ErrorState | null = null;
   modelLoadError: ErrorState | null = null;
 
@@ -280,8 +283,12 @@ class ModelStore {
   constructor() {
     makeAutoObservable<
       ModelStore,
-      'postCompletionProbeFor' | 'generationSlot' | 'isReleasingContext'
+      | 'postCompletionProbeFor'
+      | 'generationSlot'
+      | 'isReleasingContext'
+      | 'pendingProjectorTargets'
     >(this, {
+      pendingProjectorTargets: false,
       postCompletionProbeFor: false,
       generationSlot: false,
       isReleasingContext: false,
@@ -340,15 +347,26 @@ class ModelStore {
           // Fetch and persist GGUF metadata after download completes
           // Skip for projection models (CLIP) - they have different metadata structure
           if (model.modelType !== ModelType.PROJECTION) {
-            await this.fetchAndPersistGGUFMetadata(model);
+            try {
+              await this.fetchAndPersistGGUFMetadata(model);
+            } catch (error) {
+              console.warn('[ModelStore] Failed to fetch GGUF metadata:', error);
+            }
           }
           if (Platform.OS === 'android') {
-            await this._downloadProjectionModelIfNeeded(model);
-            await this._downloadDraftModelIfNeeded(model);
+            if (
+              model.modelType !== ModelType.PROJECTION &&
+              model.modelType !== ModelType.DRAFT
+            ) {
+              await this.scheduleAndroidDependencies(model);
+            }
           }
         }
+        if (Platform.OS === 'android') {
+          await this.resumeProjectorTargets(modelId);
+        }
       },
-      onError: (modelId, error, keptProgress) => {
+      onError: async (modelId, error, keptProgress) => {
         console.error('Download error for model', modelId, error);
         const model = this.models.find(m => m.id === modelId);
         if (model) {
@@ -365,6 +383,9 @@ class ModelStore {
         runInAction(() => {
           this.downloadError = errorState;
         });
+        if (Platform.OS === 'android') {
+          await this.resumeProjectorTargets(modelId);
+        }
       },
     });
   }
@@ -1725,6 +1746,52 @@ class ModelStore {
     }
   };
 
+  private scheduleAndroidDependencies = async (model: Model) => {
+    const projectorId = model.defaultProjectionModel;
+    const projector = this.models.find(m => m.id === projectorId);
+    if (
+      projectorId &&
+      projector &&
+      !projector.isDownloaded &&
+      model.supportsMultimodal &&
+      this.getModelVisionPreference(model) &&
+      !projector.isLocal &&
+      projector.origin !== ModelOrigin.LOCAL &&
+      projector.downloadUrl
+    ) {
+      const existing = this.pendingProjectorTargets.get(projectorId);
+      if (existing) {
+        existing.add(model.id);
+        return;
+      }
+      this.pendingProjectorTargets.set(projectorId, new Set([model.id]));
+      try {
+        if (!downloadManager.isDownloading(projectorId)) {
+          await this.checkSpaceAndDownload(projectorId);
+        }
+      } catch (error) {
+        console.error('Failed to auto-download projection model:', error);
+        await this.resumeProjectorTargets(projectorId);
+      }
+      return;
+    }
+    await this._downloadDraftModelIfNeeded(model);
+  };
+
+  private resumeProjectorTargets = async (projectorId: string) => {
+    const targets = this.pendingProjectorTargets.get(projectorId);
+    if (!targets) {
+      return;
+    }
+    this.pendingProjectorTargets.delete(projectorId);
+    for (const targetId of targets) {
+      const target = this.models.find(m => m.id === targetId);
+      if (target?.isDownloaded) {
+        await this._downloadDraftModelIfNeeded(target);
+      }
+    }
+  };
+
   private _downloadDraftModelIfNeeded = async (model: Model) => {
     const draftModelId = resolveDraftModelId(
       model,
@@ -1733,6 +1800,7 @@ class ModelStore {
     if (
       !draftModelId ||
       model.modelType === ModelType.DRAFT ||
+      model.modelType === ModelType.PROJECTION ||
       !this.contextInitParams.speculativeEnabled
     ) {
       return;
@@ -1817,6 +1885,9 @@ class ModelStore {
         model.isDownloaded = false;
         model.progress = 0;
       });
+    }
+    if (Platform.OS === 'android' && !downloadManager.isDownloading(modelId)) {
+      await this.resumeProjectorTargets(modelId);
     }
     this.refreshDownloadStatuses();
   };

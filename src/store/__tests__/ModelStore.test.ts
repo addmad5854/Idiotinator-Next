@@ -5914,6 +5914,97 @@ describe('ModelStore', () => {
     });
   });
 
+  describe('Android dependency terminal scheduling', () => {
+    let savedOS: typeof Platform.OS;
+    let savedSettings: typeof modelStore.contextInitParams;
+
+    beforeEach(() => {
+      savedOS = Platform.OS;
+      savedSettings = modelStore.contextInitParams;
+      Platform.OS = 'android';
+      runInAction(() => {
+        modelStore.contextInitParams = {
+          ...savedSettings,
+          speculativeEnabled: true,
+        };
+      });
+      (downloadManager.isDownloading as jest.Mock).mockReturnValue(false);
+      modelStore.models = [
+        createModel({
+          id: 'target',
+          filename: 'target.gguf',
+          modelType: ModelType.VISION,
+          supportsMultimodal: true,
+          visionEnabled: true,
+          defaultProjectionModel: 'projector',
+          defaultDraftModel: 'draft',
+          downloadUrl: 'https://example.com/target.gguf',
+          isDownloaded: false,
+          isLocal: false,
+          origin: ModelOrigin.PRESET,
+        }),
+        createModel({
+          id: 'projector',
+          filename: 'projector.gguf',
+          modelType: ModelType.PROJECTION,
+          downloadUrl: 'https://example.com/projector.gguf',
+          isDownloaded: false,
+          isLocal: false,
+          origin: ModelOrigin.PRESET,
+        }),
+        createModel({
+          id: 'draft',
+          filename: 'draft.gguf',
+          modelType: ModelType.DRAFT,
+          downloadUrl: 'https://example.com/draft.gguf',
+          isDownloaded: false,
+          isLocal: false,
+          origin: ModelOrigin.PRESET,
+        }),
+      ];
+    });
+
+    afterEach(() => {
+      Platform.OS = savedOS;
+      runInAction(() => {
+        modelStore.contextInitParams = savedSettings;
+      });
+      jest.restoreAllMocks();
+    });
+
+    const scheduledIds = () =>
+      (downloadManager.startDownload as jest.Mock).mock.calls.map(
+        ([model]) => model.id,
+      );
+
+    it.each(['complete', 'fail'] as const)(
+      'isolates metadata rejection and waits for projector %s',
+      async outcome => {
+        jest
+          .spyOn(modelStore, 'fetchAndPersistGGUFMetadata')
+          .mockRejectedValue(new Error('metadata unavailable'));
+        await modelStore.checkSpaceAndDownload('target');
+        expect(scheduledIds()).toEqual(['target']);
+        await registeredDownloadCallbacks.onComplete('target');
+        expect(modelStore.models[0].isDownloaded).toBe(true);
+        expect(scheduledIds()).toEqual(['target', 'projector']);
+        if (outcome === 'complete') {
+          await registeredDownloadCallbacks.onComplete('projector');
+        } else {
+          await registeredDownloadCallbacks.onError(
+            'projector',
+            new Error('transfer failed'),
+            0,
+          );
+        }
+        expect(scheduledIds()).toEqual(['target', 'projector', 'draft']);
+        expect(modelStore.models[0].isDownloaded).toBe(true);
+        await registeredDownloadCallbacks.onComplete('projector');
+        expect(scheduledIds()).toEqual(['target', 'projector', 'draft']);
+      },
+    );
+  });
+
   describe('checkSpaceAndDownload vision model auto-download', () => {
     beforeEach(() => {
       jest.clearAllMocks();

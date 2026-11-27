@@ -35,8 +35,7 @@ module.exports = {
   testPathIgnorePatterns: ['/node_modules/', '/e2e/'],
   moduleNameMapper: {
     '^react-native-paper$': '<rootDir>/node_modules/react-native-paper/src',
-    '^@react-native-async-storage/async-storage
-      '<rootDir>/__mocks__/external/@react-native-async-storage/async-storage.js',
+    '^@react-native-async-storage/async-storage      '<rootDir>/__mocks__/external/@react-native-async-storage/async-storage.js',
     'llama.rn': '<rootDir>/__mocks__/external/llama.rn.ts',
     'whisper.rn': '<rootDir>/__mocks__/external/whisper.rn.ts',
     '@fugood/react-native-audio-pcm-stream':
@@ -100,9 +99,7 @@ module.exports = {
     '^@pocketpalai/react-native-speech-phonon$':
       '<rootDir>/__mocks__/external/@pocketpalai/react-native-speech-phonon.ts',
     '^react-native-iap$': '<rootDir>/__mocks__/external/react-native-iap.ts',
-  },
-};
-:
+  },:
       '<rootDir>/__mocks__/external/@react-native-async-storage/async-storage.js',
     'llama.rn': '<rootDir>/__mocks__/external/llama.rn.ts',
     'whisper.rn': '<rootDir>/__mocks__/external/whisper.rn.ts',

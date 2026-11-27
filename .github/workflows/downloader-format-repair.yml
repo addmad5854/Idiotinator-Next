@@ -1,5 +1,6 @@
 name: Patch branch formatting repair
 on:
+  workflow_dispatch:
   push:
     branches: [fix/downloader-range-recovery]
     paths: ['.github/workflows/downloader-format-repair.yml']
@@ -17,6 +18,8 @@ jobs:
       - run: yarn install --frozen-lockfile
         env:
           HUSKY: '0'
+      - name: Verify configuration before formatting
+        run: node --check jest.config.js
       - name: Repair formatting
         run: |
           yarn exec -- prettier --write 'src/**/*.{js,ts,tsx}' App.tsx index.js jest.config.js

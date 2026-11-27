@@ -51,3 +51,5 @@ jobs:
           path: formatting-repair.patch
 
 # Reverify storage, reasoning and hardware regression corrections.
+
+# Regression rerun after storage and chat inference repairs.

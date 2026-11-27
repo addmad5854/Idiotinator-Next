@@ -89,7 +89,6 @@ const prepareCompletion = async ({
   l10n,
   currentMessages,
   spoken,
-  reasoningLevel,
 }: {
   imageUris: string[];
   message: MessageType.PartialText;
@@ -101,7 +100,6 @@ const prepareCompletion = async ({
   l10n: any;
   currentMessages: MessageType.Any[];
   spoken: boolean;
-  reasoningLevel?: ReasoningLevel;
 }) => {
   const sessionCompletionSettings =
     await chatSessionStore.getCurrentCompletionSettings();
@@ -861,7 +859,6 @@ export const useChatSession = (
       l10n,
       currentMessages,
       spoken: !!opts.spoken,
-      reasoningLevel,
     });
 
     currentMessageInfo.current = messageInfo;

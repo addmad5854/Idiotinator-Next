@@ -74,6 +74,8 @@ jobs:
           GOOGLE_WEB_CLIENT_ID=dummy-web-client-id.apps.googleusercontent.com
           EOL
 
+      - name: Verify Jest configuration syntax
+        run: node --check jest.config.js
       - name: Lint
         run: yarn lint
       - name: TypeScript
